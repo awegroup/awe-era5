@@ -1,69 +1,168 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""Downloads one month of ERA5 wind data via the ECMWF Web API and saves it to the location as specified in config.py.
 
-# For more information about the request parameters see the ERA5 catalogue: http://apps.ecmwf.int/data-catalogues/era5
-# and the  ERA5 documentation: https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation
+First `install ECMWF key`_. For more information about the request parameters see the `ERA5 catalogue`_ and the `ERA5
+documentation`_. The ERA5 catalogue form shows the available data and generates Python code for executing the data
+request, e.g. go to this `pre-filled form`_, select the desired parameters, and click on "View the MARS request" to
+generate Python code for executing the request.
 
-# E.g. go to lower url, select the desired parameters, and click on "View the MARS request" to generate Python code for
-# executing the request.
-# http://apps.ecmwf.int/data-catalogues/era5/?stream=oper&levtype=ml&expver=1&month=jan&year=2008&type=an&class=ea
+Example::
+
+    $ python download_wind_data.py 2017 --month 01
+
+.. _install ECMWF key:
+    https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key
+.. _ERA5 catalogue:
+    http://apps.ecmwf.int/data-catalogues/era5
+.. _ERA5 documentation:
+    https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation
+.. _pre-filled form:
+    http://apps.ecmwf.int/data-catalogues/era5/?stream=oper&levtype=ml&expver=1&month=jan&year=2008&type=an&class=ea
+
+"""
 
 from ecmwfapi import ECMWFDataServer
-import sys
+import argparse
+import re
 import os
 import datetime as dt
 
-# Map command-line arguments.
-assert len(sys.argv) == 6, "5 command-line arguments are required."
-year = int(sys.argv[1])
-month = int(sys.argv[2])
-# Specify requested area as N/W/S/E in Geographic lat/long degrees. Southern latitudes and western longitudes must be
-# given as negative numbers. E.g. "65/-20/30/20" for Western and Central Europe as used in the paper.
-area = sys.argv[3]
-grid = sys.argv[4]
-output_dir = sys.argv[5]
+from config import area, grid, era5_data_dir, wind_file_name_format
 
 server = ECMWFDataServer()  # Connect to server.
 
-# Do not change lower
-request_config = {
-    "class": "ea",
-    "dataset": "era5",
-    "expver": "1",
-    "stream": "oper",
-    "type": "an",
-    "levelist": "105/106/107/108/109/110/111/112/113/114/115/116/117/118/119/120/121/122/123/124/125/126/127/128/129/130/131/132/133/134/135/136/137",
-    "levtype": "ml",
-    "param": "131/132",
-    "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/22:00:00/23:00:00",
-    "step": "0",
-    "format": "netcdf",
-}
 
-# Add the period to request_config - a 1 month period is recommended.
-start_date = dt.datetime(year, month, 1)
-if month+1 == 13:
-    end_date = dt.datetime(year, 12, 31)
-else:
-    end_date = dt.datetime(year, month + 1, 1) - dt.timedelta(days=1)
-request_config["date"] = start_date.strftime("%Y-%m-%d")+"/to/"+end_date.strftime("%Y-%m-%d")
+def area_type(s):
+    """Validate the type of area argument.
 
-# Add the area to request_config.
-request_config['area'] = area
+    Args:
+        s (str): The parsed argument.
 
-# Add the grid to request_config.
-if grid == 'fine':
-    request_config['grid'] = "0.25/0.25"
-else:
-    request_config['grid'] = "0.1/0.1"
+    Returns:
+        str: The input string if valid.
 
-# Add the save file location to request_config.
-request_config["target"] = output_dir + "/era5_wind_data_{:02d}_{:02d}.netcdf".format(year, month)
+    Raises:
+        ValueError: If `s` does not match the regex.
 
-if os.path.exists(request_config["target"]):
-    print("File ({}) already exists. To start the download, remove the file and try again."
-          .format(request_config["target"]))
-else:
-    print("Requesting download for period: " + request_config["date"])
-    print("Writing to: " + request_config["target"])
-    server.retrieve(request_config)
-    print("Download complete")
+    """
+    if not re.compile(r"-?[0-9]{1,2}\/-?[0-9]{1,3}\/-?[0-9]{1,2}\/-?[0-9]{1,3}").match(s):
+        raise ValueError('Area is not provided in "65/-20/30/20" format.')
+    return s
+
+
+def year_type(s):
+    """Validate the type of year argument.
+
+    Args:
+        s (str): The parsed argument.
+
+    Returns:
+        int: Year if valid.
+
+    Raises:
+        ValueError: If `s` is not a valid input.
+
+    """
+    y = int(s)
+    if y < 1950:
+        raise ValueError('Year should be provided in four-digit format and greater than 1950.')
+    return y
+
+
+def parse_args():
+    """Parse command-line arguments.
+
+    Returns:
+        dict: Argument name and parsed argument value pairs.
+
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('year', type=year_type, help='Four-digit year of requested data set.')
+    parser.add_argument('--month', type=int, help='Two-digit month of requested data set.')
+    # parser.add_argument('area', type=area_type,
+    #                     help='Area as N/W/S/E in Geographic lat/long degrees. Southern latitudes and western longitudes'
+    #                          ' must be given as negative numbers, e.g. "65/-20/30/20" for Western and Central Europe as'
+    #                          'used in the paper.')
+    # parser.add_argument('grid', choices=['fine', 'coarse'],
+    #                     help='Resolution of requested data set: "fine" or "coarse".')
+    # parser.add_argument('output_dir', help='Output directory of the downloaded NetCDF file.')
+    return vars(parser.parse_args())
+
+
+def initiate_download(period_request):
+    """Construct request and initiate download.
+
+    Args:
+        period_request (dict): Period of data request property name and value pairs.
+
+    """
+    # Default data request configuration - do not change.
+    era5_request = {
+        "class": "ea",
+        "dataset": "era5",
+        "expver": "1",
+        "stream": "oper",
+        "type": "an",
+        "levelist": "105/106/107/108/109/110/111/112/113/114/115/116/117/118/119/120/121/122/123/124/125/126/127/128/"
+                    "129/130/131/132/133/134/135/136/137",
+        "levtype": "ml",
+        "param": "131/132",
+        "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/"
+                "11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/"
+                "22:00:00/23:00:00",
+        "step": "0",
+        "format": "netcdf",
+    }
+
+    # Add the area to request_config.
+    era5_request['area'] = area
+
+    # Add the grid to request_config.
+    if grid == 'fine':
+        era5_request['grid'] = "0.25/0.25"
+    else:
+        era5_request['grid'] = "0.1/0.1"
+
+    if period_request['month'] is not None:
+        download_data(period_request, era5_request)
+    else:
+        for m in range(1, 13):
+            period_request['month'] = m
+            download_data(period_request, era5_request)
+
+
+def download_data(period_request, era5_request):
+    """Download data to [output_dir]/era5_wind_data_[yy]_[mm].netcdf.
+
+    Args:
+        period_request (dict): Period of data request property name and value pairs.
+        era5_request (dict): ERA5 data request property name and value pairs.
+
+    """
+    # Add the save file location to request_config.
+    era5_request["target"] = era5_data_dir + wind_file_name_format.format(period_request['year'], period_request['month'])
+
+    # Add the period to request_config - 1 month period is used per request as suggested in ERA5 documentation.
+    start_date = dt.datetime(period_request['year'], period_request['month'], 1)
+    if period_request['month']+1 == 13:
+        end_date = dt.datetime(period_request['year'], 12, 31)
+    else:
+        end_date = dt.datetime(period_request['year'], period_request['month'] + 1, 1) - dt.timedelta(days=1)
+    era5_request["date"] = start_date.strftime("%Y-%m-%d") + "/to/" + end_date.strftime("%Y-%m-%d")
+
+    # If file does not exist, start the download.
+    if os.path.exists(era5_request["target"]):
+        print("File ({}) already exists. To start the download, remove the file and try again."
+              .format(era5_request["target"]))
+    else:
+        print("Requesting download for period: " + era5_request["date"])
+        print("Saving data in: " + era5_request["target"])
+        server.retrieve(era5_request)
+        print("Download complete")
+
+
+if __name__ == '__main__':
+    area_type(area)
+    period_request = parse_args()
+    initiate_download(period_request)

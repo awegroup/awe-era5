@@ -33,7 +33,7 @@ def get_density_at_altitude(altitude):
 
 
 if __name__ == "__main__":
-    speeds = [4., 8., 14., 25.]
+    speeds = [2.9, 4., 8., 14., 25.]
     rho_500 = 1.2  #get_density_at_altitude(500.)
     print(rho_500)
     print(["{:.1f}".format(1./2*rho_500*v**3) for v in speeds])
