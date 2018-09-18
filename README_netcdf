@@ -1,0 +1,95 @@
+<Insert final name of dataset here>
+
+1.) Introduction
+
+The data in this repository is provided through the efforts of the
+European Centre for Medium term Weather Forecasts ECMWF
+https://www.ecmwf.int
+It contains only wind data at different barometric altitude levels over
+a grid of geocoordiunates over Europe, and over the timeframe 2011-2017.
+It can be used to assess the wind potential for different (High altitude)
+wind power generatuon technologies.
+
+2.) Data source
+
+For a detailed description of the ERA5 analysis of a full atmospheric model
+can be found here:
+https://www.ecmwf.int/en/forecasts/datasets/archive-datasets/reanalysis-datasets/era5
+For an assessment of th wind data in this analysis, see the preprint
+of the publication
+https://arxiv.org/abs/1808.07718
+
+3.) Data format
+
+the file naming convention is
+
+output_<year>_<location>_<month>.netcdf
+
+The wind data are stored in the netcdf4 format:
+https://www.unidata.ucar.edu/software/netcdf/
+The analysis can be portformed using the netcdf4 python module:
+http://unidata.github.io/netcdf4-python/
+
+The data contains the following variables of interest:
+u: wind speed in [m/s] in the east/west direction
+v: wind speed in [m/s] in the north/south direction
+
+These variables are stored for the following space-time coordinates:
+- for each geolocation in a 1x1 degree grid within
+  N20  - N65 degrees
+  W-20 - W20 degrees
+- for the following altitude levels in [m] above sea level:
+  13077.79,
+  10986.70,
+  8951.30,
+  6915.29,
+  4892.26,
+  3087.75,
+  2653.58,
+  2260.99,
+  1910.19,
+  1600.04,
+  1459.58,
+  1328.43,
+  1206.21,
+  1092.54,
+  987.00,
+  889.17,
+  798.62,
+  714.94,
+  637.70,
+  566.49,
+  500.91,
+  440.58,
+  385.14,
+  334.22,
+  287.51,
+  244.68,
+  205.44,
+  169.50,
+  136.62,
+  106.54,
+  79.04,
+  53.92,
+  30.96,
+  10.00
+- for each hour in the month stated in the file name, starting
+  with 0:00 on the first day of the month and ending with
+  23:00 on the last day of the month
+
+4.) Example code
+
+The analysis code used for the first publication based on this dataset
+https://arxiv.org/abs/1808.07718
+can be found in
+https://github.com/rschmehl/awe-era5
+For a quick starting point, download the python script
+<Insert name of simple script>
+and install all the relevant python modules on your system. Then call
+python <Insert name of simple script>
+The output should be:
+<Insert example output>
+
+5.) Licence
+
+<Insert licence statement for the code and the data here>
