@@ -12,10 +12,11 @@ from netCDF4 import Dataset, MFDataset
 import numpy as np
 from timeit import default_timer as timer
 from scipy.stats import percentileofscore
+from os.path import join as path_join
 
 from utils import get_density_at_altitude, hour_to_date_str
-from config import start_year, final_year, era5_data_dir, wind_file_name_format, geopotential_file_name, output_file_name, \
-    n_lats_per_cluster
+from config import start_year, final_year, era5_data_dir, wind_file_name_format, geopotential_file_name,\
+    output_file_name, n_lats_per_cluster
 
 # Set the relevant heights for the different analysis types.
 analyzed_heights = {
@@ -70,7 +71,7 @@ def get_surface_elevation(wind_lat, wind_lon):
 
     """
     # Load the NetCDF file containing the geopotential of Europe.
-    nc = Dataset(era5_data_dir+geopotential_file_name)
+    nc = Dataset(path_join(era5_data_dir, geopotential_file_name))
 
     # Read the variables from the netCDF file.
     geopot_lat = nc.variables['latitude'][:]
@@ -158,7 +159,7 @@ def read_raw_data(start_year, final_year):
     netcdf_files = []
     for y in range(start_year, final_year+1):
         for m in range(1, 13):
-            netcdf_files.append(era5_data_dir + wind_file_name_format.format(y, m))
+            netcdf_files.append(path_join(era5_data_dir, wind_file_name_format.format(y, m)))
 
     # Load the data from the NetCDF files.
     nc = MFDataset(netcdf_files)

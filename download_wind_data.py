@@ -46,8 +46,12 @@ def area_type(s):
         ValueError: If `s` does not match the regex.
 
     """
-    if not re.compile(r"-?[0-9]{1,2}\/-?[0-9]{1,3}\/-?[0-9]{1,2}\/-?[0-9]{1,3}").match(s):
-        raise ValueError('Area is not provided in "65/-20/30/20" format.')
+    lat_regex = r"-?[0-9]{1,2}(\.[0-9][0-9]?)?"
+    lon_regex = r"-?[0-9]{1,3}(\.[0-9][0-9]?)?"
+
+    if not re.compile(lat_regex + r"\/" + lon_regex + r"\/" + lat_regex + r"\/" + lon_regex).match(s):
+        raise ValueError('Area is not provided in "65/-20/30/20" format. Moreover not more than two digits after the'
+                         'decimal point are allowed.')
     return s
 
 
@@ -120,9 +124,11 @@ def initiate_download(period_request):
 
     # Add the grid to request_config.
     if grid == 'fine':
+        era5_request['grid'] = "0.1/0.1"
+    elif grid == 'coarse':
         era5_request['grid'] = "0.25/0.25"
     else:
-        era5_request['grid'] = "0.1/0.1"
+        raise ValueError("Invalid grid parameter provided in config.py, opt between 'fine' or 'coarse'.")
 
     if period_request['month'] is not None:
         download_data(period_request, era5_request)
@@ -140,8 +146,13 @@ def download_data(period_request, era5_request):
         era5_request (dict): ERA5 data request property name and value pairs.
 
     """
+    if not os.path.isdir(era5_data_dir):
+        raise ValueError("Data target directory as specified in config.py does not exist, change it to an existing"
+                         "directory.")
+
     # Add the save file location to request_config.
-    era5_request["target"] = era5_data_dir + wind_file_name_format.format(period_request['year'], period_request['month'])
+    era5_request["target"] = os.path.join(era5_data_dir,
+                                          wind_file_name_format.format(period_request['year'], period_request['month']))
 
     # Add the period to request_config - 1 month period is used per request as suggested in ERA5 documentation.
     start_date = dt.datetime(period_request['year'], period_request['month'], 1)
@@ -153,8 +164,8 @@ def download_data(period_request, era5_request):
 
     # If file does not exist, start the download.
     if os.path.exists(era5_request["target"]):
-        print("File ({}) already exists. To start the download, remove the file and try again."
-              .format(era5_request["target"]))
+        raise ValueError("File ({}) already exists. To start the download, remove the file and try again."
+                         .format(era5_request["target"]))
     else:
         print("Requesting download for period: " + era5_request["date"])
         print("Saving data in: " + era5_request["target"])

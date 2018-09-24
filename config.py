@@ -21,7 +21,7 @@ Attributes:
 # General settings.
 start_year = 2011
 final_year = 2017
-era5_data_dir = '/media/usr/ERA5Data/'
+era5_data_dir = '~/ERA5Data/'
 wind_file_name_format = 'era5_wind_data_{:d}_{:02d}.netcdf'
 geopotential_file_name = 'era5_geopotential.netcdf'
 

@@ -53,16 +53,22 @@ def download_data():
 
     # Add the grid to request_config.
     if grid == 'fine':
+        request_config['grid'] = "0.1/0.1"
+    elif grid == 'coarse':
         request_config['grid'] = "0.25/0.25"
     else:
-        request_config['grid'] = "0.1/0.1"
+        raise ValueError("Invalid grid parameter provided in config.py, opt between 'fine' or 'coarse'.")
+
+    if not os.path.isdir(era5_data_dir):
+        raise ValueError("Data target directory as specified in config.py does not exist, change it to an existing"
+                         "directory.")
 
     # Add the save file location to request_config.
-    request_config["target"] = era5_data_dir + geopotential_file_name
+    request_config["target"] = os.path.join(era5_data_dir, geopotential_file_name)
 
     if os.path.exists(request_config["target"]):
-        print("File ({}) already exists. To start the download, remove the file and try again."
-              .format(request_config["target"]))
+        raise ValueError("File ({}) already exists. To start the download, remove the file and try again."
+                         .format(request_config["target"]))
     else:
         print("Writing to: " + request_config["target"])
         server.retrieve(request_config)
