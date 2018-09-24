@@ -48,22 +48,25 @@ In the config.py file, configure the general, downloading, and processing settin
 found in the script. For more information about the request parameters see the
 [ERA5 catalogue](http://apps.ecmwf.int/data-catalogues/era5) and the
 [ERA5 documentation](https://software.ecmwf.int/wiki/display/CKB/ERA5+data+documentation). It is important to first
-finish this step before proceeding to downloading the data.
+finish this step before proceeding to downloading the data. E.g. if the target directory path for downloading and reading data files does not exist on your machine the next steps will not be successful.
 
 ## Step 3: Downloading ERA5 data
 
 The wind resource analysis requires ERA5 wind and geopotential data can be downloaded using the ECMWF Web API.
 This requires an [EMCWF account](https://apps.ecmwf.int/registration/) and
 [installing the ECMWF key](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key).
-The lower command can be used to start downloading the wind dataset for the requested year (make sure that the new
-virtual environment is active). Make sure to download all years of data as specified in config.py. Note that the
-downloading is time costly.
+Furthermore it is required to accept the terms and conditions for using the ERA5 data. The lower command can be used to
+start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This
+command should be executed manually for each year of data that you want to download. The size of 1 year
+of wind data for Western and Central Europe as used in the paper (coarse grid) is roughly 2 GB. Make sure you have 
+enough disk space available and to download all the years of data as you have specified in config.py in the previous
+step. Note that the downloading is time costly. 
 
 ```commandline
 python download_wind_data.py 2018
 ```
 
-The lower command can be used to start downloading the geopotential data.
+Download the geopotential data using the following command:
 
 ```commandline
 python download_geopotential_data.py
