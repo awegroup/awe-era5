@@ -4,7 +4,7 @@ This repository contains the Python code for analysing the airborne wind energy 
 
 ## Step 1: Preparing Python environment
 
-The code is developed in Python 2.7. It is recommended to use [Anaconda](https://conda.io/docs/user-guide/install/index.html#regular-installation) for setting up the environment.
+The code is developed in Python 2.7. It is recommended to use [Anaconda](https://conda.io/docs/user-guide/install/index.html#regular-installation) for setting up the environment. The following notes are for Linux.
 
 ### Installation using Anaconda
 
