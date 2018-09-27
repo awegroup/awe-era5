@@ -2,6 +2,8 @@
 
 This repository contains the Python code for analysing the airborne wind energy resource using the ERA5 dataset. The paper has been submitted to Renewable Energy and is available as preprint from https://arxiv.org/abs/1808.07718
 
+An archived version of this code, packaged with the original datasets of the published resource analysis, can be accessed at DOI:[10.4121/uuid:646eaf3f-c90b-4f22-89bf-8986804def3c](http://doi.org/10.4121/uuid:646eaf3f-c90b-4f22-89bf-8986804def3c)
+
 ## Step 1: Preparing the Python environment
 
 The code is developed in Python 2.7. It is recommended to use [Anaconda](https://conda.io/docs/user-guide/install/index.html#regular-installation) for setting up the environment. The following notes are for Linux. We welcome contributions for other operating systems.
