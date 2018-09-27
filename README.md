@@ -2,7 +2,7 @@
 
 This repository contains the Python code for analysing the airborne wind energy resource using the ERA5 dataset. The paper has been submitted to Renewable Energy and is available as preprint from https://arxiv.org/abs/1808.07718
 
-## Step 1: Preparing Python environment
+## Step 1: Preparing the Python environment
 
 The code is developed in Python 2.7. It is recommended to use [Anaconda](https://conda.io/docs/user-guide/install/index.html#regular-installation) for setting up the environment. The following notes are for Linux.
 
@@ -50,11 +50,11 @@ requires an [EMCWF account](https://apps.ecmwf.int/registration/) and
 Furthermore it is required to accept the terms and conditions for using the ERA5 data. The command below can be used to
 start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This
 command should be executed manually for each year of data that you want to download. The size of 1 year of wind data for
-Western and Central Europe, as used in the paper (coarse grid), is roughly 2 GB. Make sure that there is enough disk
+Western and Central Europe, as used in the paper (coarse grid), is roughly 2 GB. Make sure that there is sufficient disk
 space available and that you download all the years of data as specified in config.py. Note that the downloading is time
 costly: in the order of magnitude of days. Prevent your machine from going into sleep mode during the downloading. The
-download script requests 1 month of data at the time. It does 12 sequential download requests, only starting a new
-download after the previous has finished.
+download script requests 1 month of data at the time. It performs 12 sequential download requests, starting a new
+download only after the previous one has finished.
 
 ```commandline
 python download_wind_data.py 2018
