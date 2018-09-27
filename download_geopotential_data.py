@@ -70,9 +70,9 @@ def download_data():
         raise ValueError("File ({}) already exists. To start the download, remove the file and try again."
                          .format(request_config["target"]))
     else:
-        print("Writing to: " + request_config["target"])
+        print("Saving data in: " + request_config["target"])
         server.retrieve(request_config)
-        print("Download complete")
+        print("Download complete.")
 
 
 if __name__ == '__main__':

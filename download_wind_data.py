@@ -131,11 +131,16 @@ def initiate_download(period_request):
         raise ValueError("Invalid grid parameter provided in config.py, opt between 'fine' or 'coarse'.")
 
     if period_request['month'] is not None:
+        print("Downloading 1 month of wind data.")
         download_data(period_request, era5_request)
+        print("Download complete.")
     else:
+        print("Sequentially downloading 12 months of wind data of {}.".format(period_request['year']))
         for m in range(1, 13):
+            print("Starting download {} out of 12.".format(m))
             period_request['month'] = m
             download_data(period_request, era5_request)
+        print("All downloads are completed.")
 
 
 def download_data(period_request, era5_request):
@@ -164,13 +169,12 @@ def download_data(period_request, era5_request):
 
     # If file does not exist, start the download.
     if os.path.exists(era5_request["target"]):
-        raise ValueError("File ({}) already exists. To start the download, remove the file and try again."
-                         .format(era5_request["target"]))
+        print("File ({}) already exists. To start the download, remove the file and try again."
+              .format(era5_request["target"]))
     else:
-        print("Requesting download for period: " + era5_request["date"])
+        print("Period: " + era5_request["date"])
         print("Saving data in: " + era5_request["target"])
         server.retrieve(era5_request)
-        print("Download complete")
 
 
 if __name__ == '__main__':

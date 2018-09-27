@@ -44,8 +44,17 @@ In the config.py file, configure the general, downloading, and processing settin
 
 ## Step 3: Downloading ERA5 data
 
-The wind resource analysis requires ERA5 wind and geopotential data can be downloaded using the ECMWF Web API. This requires an [EMCWF account](https://apps.ecmwf.int/registration/) and [installing the ECMWF key](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key). Furthermore it is required to accept the terms and conditions for using the ERA5 data. The command below can be used to start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This command should be executed manually for each year of data that you want to download. The size of 1 year of wind data for Western and Central Europe as used in the paper (coarse grid) is roughly 2 GB. Make sure you have enough disk space available and to download all the years of data as you have specified in config.py in the previous step. Note that the downloading is time costly (in the order of magnitude of days).
-The download script requests 1 month of data at the time. It does 12 sequential download requests, only starting a new download after the previous has finished.
+The wind resource analysis requires ERA5 wind and geopotential data can be downloaded using the ECMWF Web API. This
+requires an [EMCWF account](https://apps.ecmwf.int/registration/) and
+[installing the ECMWF key](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key).
+Furthermore it is required to accept the terms and conditions for using the ERA5 data. The command below can be used to
+start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This
+command should be executed manually for each year of data that you want to download. The size of 1 year of wind data for
+Western and Central Europe, as used in the paper (coarse grid), is roughly 2 GB. Make sure that there is enough disk
+space available and that you download all the years of data as specified in config.py. Note that the downloading is time
+costly: in the order of magnitude of days. Prevent your machine going into sleep mode during the downloading. The
+download script requests 1 month of data at the time. It does 12 sequential download requests, only starting a new
+download after the previous has finished.
 
 ```commandline
 python download_wind_data.py 2018
