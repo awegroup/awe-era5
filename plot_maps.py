@@ -630,7 +630,7 @@ def plot_figure9():
         'data': (100.-nc.variables["p_ceiling_rank40"][height_ceiling_id, :, :])-
                 (100.-nc.variables["p_fixed_rank40"][0, :, :]),
         'contour_fill_levels': np.linspace(0., 22., 21),
-        'contour_line_levels': [1.1, 2.2]+list(np.linspace(0., 22., 21)[::4][:-2]),
+        'contour_line_levels': sorted([1.1, 2.2]+list(np.linspace(0., 22., 21)[::4][:-2])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': np.linspace(0., 22., 21)[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -714,7 +714,7 @@ def plot_figure10():
         'data': -(100.-nc.variables["p_ceiling_rank40"][height_ceiling_ids[0], :, :])+
                 (100.-nc.variables["p_ceiling_rank40"][baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace10,
-        'contour_line_levels': [1.1]+list(linspace10[::4]),
+        'contour_line_levels': sorted([1.1]+list(linspace10[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace10[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -725,7 +725,7 @@ def plot_figure10():
         'data': (100.-nc.variables["p_ceiling_rank40"][height_ceiling_ids[1], :, :])-
                 (100.-nc.variables["p_ceiling_rank40"][baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace11,
-        'contour_line_levels': [2.3]+list(linspace11[::4]),
+        'contour_line_levels': sorted([2.3]+list(linspace11[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace11[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -736,7 +736,7 @@ def plot_figure10():
         'data': (100.-nc.variables["p_ceiling_rank40"][height_ceiling_ids[2], :, :])-
                 (100.-nc.variables["p_ceiling_rank40"][baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace12,
-        'contour_line_levels': [3.8]+list(linspace12[::4]),
+        'contour_line_levels': sorted([3.8]+list(linspace12[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace12[::4],
         'colorbar_tick_fmt': '{:.0f}',
