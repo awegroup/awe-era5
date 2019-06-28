@@ -1,18 +1,20 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-"""Downloads one month of ERA5 wind data via the ECMWF Web API and saves it to the location as specified in config.py.
+"""Downloads one month of ERA5 wind data via the Climate Data Store (CDS) API and saves it to the location as specified
+in config.py.
 
-First `install ECMWF key`_. For more information about the request parameters see the `ERA5 catalogue`_ and the `ERA5
-documentation`_. The ERA5 catalogue form shows the available data and generates Python code for executing the data
-request, e.g. go to this `pre-filled form`_, select the desired parameters, and click on "View the MARS request" to
-generate Python code for executing the request.
+First `install CDS API key`_. The data used for this analysis is not listed in the CDS download data web form. ECMWF
+MARS keywords are used to request this data. For more information about the request parameters see the `ERA5 catalogue`_
+and the `ERA5 documentation`_. The ERA5 catalogue form shows the available data and generates Python code for executing
+the data request, e.g. go to this `pre-filled form`_, select the desired parameters, and click on "View the MARS
+request" to generate Python code for executing the request.
 
 Example::
 
     $ python download_wind_data.py 2017 --month 01
 
-.. _install ECMWF key:
-    https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key
+.. _install CDS API key:
+    https://cds.climate.copernicus.eu/api-how-to
 .. _ERA5 catalogue:
     http://apps.ecmwf.int/data-catalogues/era5
 .. _ERA5 documentation:
@@ -22,7 +24,7 @@ Example::
 
 """
 
-from ecmwfapi import ECMWFDataServer
+import cdsapi
 import argparse
 import re
 import os
@@ -30,7 +32,7 @@ import datetime as dt
 
 from config import area, grid, era5_data_dir, wind_file_name_format
 
-server = ECMWFDataServer()  # Connect to server.
+client = cdsapi.Client()  # Connect to server.
 
 
 def area_type(s):
@@ -104,7 +106,6 @@ def initiate_download(period_request):
     # Default data request configuration - do not change.
     era5_request = {
         "class": "ea",
-        "dataset": "era5",
         "expver": "1",
         "stream": "oper",
         "type": "an",
@@ -115,7 +116,6 @@ def initiate_download(period_request):
         "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/"
                 "11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/"
                 "22:00:00/23:00:00",
-        "step": "0",
         "format": "netcdf",
     }
 
@@ -144,7 +144,7 @@ def initiate_download(period_request):
 
 
 def download_data(period_request, era5_request):
-    """Download data to [output_dir]/era5_wind_data_[yy]_[mm].netcdf.
+    """Download data to the target location as specified in the config.
 
     Args:
         period_request (dict): Period of data request property name and value pairs.
@@ -156,8 +156,8 @@ def download_data(period_request, era5_request):
                          "directory.")
 
     # Add the save file location to request_config.
-    era5_request["target"] = os.path.join(era5_data_dir,
-                                          wind_file_name_format.format(period_request['year'], period_request['month']))
+    target_file = os.path.join(era5_data_dir, wind_file_name_format.format(period_request['year'],
+                                                                           period_request['month']))
 
     # Add the period to request_config - 1 month period is used per request as suggested in ERA5 documentation.
     start_date = dt.datetime(period_request['year'], period_request['month'], 1)
@@ -168,13 +168,13 @@ def download_data(period_request, era5_request):
     era5_request["date"] = start_date.strftime("%Y-%m-%d") + "/to/" + end_date.strftime("%Y-%m-%d")
 
     # If file does not exist, start the download.
-    if os.path.exists(era5_request["target"]):
+    if os.path.exists(target_file):
         print("File ({}) already exists. To start the download, remove the file and try again."
-              .format(era5_request["target"]))
+              .format(target_file))
     else:
         print("Period: " + era5_request["date"])
-        print("Saving data in: " + era5_request["target"])
-        server.retrieve(era5_request)
+        print("Saving data in: " + target_file)
+        client.retrieve("reanalysis-era5-complete", era5_request, target_file)
 
 
 if __name__ == '__main__':

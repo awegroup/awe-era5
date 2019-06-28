@@ -34,10 +34,10 @@ Make sure that the new environment is active before running any of the Python sc
 
 ### Required packages
 
-In case you wish to install the Python packages differently, refer to the requirements.txt for the required packages and their versions. In addition, the ecmwf-api-client packages are required. [Install the ECMWF WebAPI client library](https://confluence.ecmwf.int//display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key) using the following pip command.
+In case you wish to install the Python packages differently, refer to the requirements.txt for the required packages and their versions. In addition, the Climate Data Store API client is required. [Install the CDS API](https://cds.climate.copernicus.eu/api-how-to) using the following pip command.
 
 ```commandline
-pip install https://software.ecmwf.int/wiki/download/attachments/56664858/ecmwf-api-client-python.tgz
+pip install cdsapi
 ```
 
 ## Step 2: Analysis configuration
@@ -46,9 +46,9 @@ In the config.py file, configure the general, downloading, and processing settin
 
 ## Step 3: Downloading ERA5 data
 
-The wind resource analysis requires ERA5 wind and geopotential data which can be downloaded using the ECMWF Web API. This
-requires an [EMCWF account](https://apps.ecmwf.int/registration/) and
-[installing the ECMWF key](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key).
+The wind resource analysis requires ERA5 wind and geopotential data which can be downloaded using the CDS API. This
+requires an [CDS account](https://cds.climate.copernicus.eu/user/register) and
+[installing the CDS API key](https://cds.climate.copernicus.eu/api-how-to).
 Furthermore, it is required to accept the terms and conditions for using the ERA5 data. The command below can be used to
 start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This
 command should be executed manually for each year of data that you want to download. The size of 1 year of wind data for

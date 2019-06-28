@@ -2,16 +2,17 @@
 # -*- coding: utf-8 -*-
 """Downloads ERA5 geopotential data via the ECMWF Web API and saves it to the location as specified in config.py.
 
-First `install ECMWF key`_. For more information about the request parameters see the `ERA5 catalogue`_ and the `ERA5
-documentation`_. The ERA5 catalogue form shows the available data and generates Python code for executing the data
-request.
+First `install CDS API key`_. The data used for this analysis is not listed in the CDS download data web form. ECMWF
+MARS keywords are used to request this data. For more information about the request parameters see the `ERA5 catalogue`_
+and the `ERA5 documentation`_. The ERA5 catalogue form shows the available data and generates Python code for executing
+the data request.
 
 Example::
 
     $ python download_geopotential_data.py
 
-.. _install ECMWF key:
-    https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key
+.. _install CDS API key:
+    https://cds.climate.copernicus.eu/api-how-to
 .. _ERA5 catalogue:
     http://apps.ecmwf.int/data-catalogues/era5
 .. _ERA5 documentation:
@@ -19,7 +20,7 @@ Example::
 
 """
 
-from ecmwfapi import ECMWFDataServer
+import cdsapi
 import os
 
 from config import area, grid, era5_data_dir, geopotential_file_name
@@ -32,12 +33,11 @@ def download_data():
         data_request (dict): Data request property name and value pairs.
 
     """
-    server = ECMWFDataServer()  # Connect to server.
+    client = cdsapi.Client()  # Connect to server.
 
     # Default data request configuration - do not change.
     request_config = {
         "class": "ea",
-        "dataset": "era5",
         "expver": "1",
         "stream": "oper",
         "type": "an",
@@ -64,14 +64,14 @@ def download_data():
                          "directory.")
 
     # Add the save file location to request_config.
-    request_config["target"] = os.path.join(era5_data_dir, geopotential_file_name)
+    target_file = os.path.join(era5_data_dir, geopotential_file_name)
 
-    if os.path.exists(request_config["target"]):
+    if os.path.exists(target_file):
         raise ValueError("File ({}) already exists. To start the download, remove the file and try again."
-                         .format(request_config["target"]))
+                         .format(target_file))
     else:
-        print("Saving data in: " + request_config["target"])
-        server.retrieve(request_config)
+        print("Saving data in: " + target_file)
+        client.retrieve("reanalysis-era5-complete", request_config, target_file)
         print("Download complete.")
 
 
