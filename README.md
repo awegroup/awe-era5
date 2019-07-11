@@ -90,4 +90,4 @@ python plot_maps.py
 ## Acknowledgements
 Thank you to Kim Lux for testing the installation and use of this package and for valuable feedback for improvements.
 
-This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the grant agreement No. 691173 (project REACH) and the Marie Sklodowska-Curie grant agreement No 642682 (project AWESCO).
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the grant agreement No. 691173 (REACH) and the Marie Sklodowska-Curie grant agreement No 642682 (AWESCO).
