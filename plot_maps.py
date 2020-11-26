@@ -35,11 +35,11 @@ nc = Dataset(output_file_name)
 lons = nc.variables['longitude'][:]
 lats = nc.variables['latitude'][:]
 height_range_floor = 50.
-height_range_ceilings = nc.variables['height_range_ceiling'][:]
-fixed_heights = nc.variables['fixed_height'][:]
-integration_range_ids = nc.variables['integration_range_id'][:]
-p_integral_mean = nc.variables['p_integral_mean'][:]
-hours = nc.variables['time'][:]  # Hours since 1900-01-01 00:00:0.0, see: print(nc.variables['time']).
+height_range_ceilings = list(nc.variables['height_range_ceiling'])
+fixed_heights = list(nc.variables['fixed_height'])
+integration_range_ids = list(nc.variables['integration_range_id'])
+p_integral_mean = list(nc.variables['p_integral_mean'])
+hours = nc.variables['time'][:]  # Hours since 1900-01-01 00:00:00, see: print(nc.variables['time']).
 print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(hours[-1]))
 
 # Prepare the general map plot.
@@ -81,12 +81,12 @@ def eval_contour_fill_levels(plot_items):
     for i, item in enumerate(plot_items):
         max_value = np.amax(item['data'])
         min_value = np.amin(item['data'])
-        print("Max and min value of plot {}: {:.2f} and {:.2f}".format(i, max_value, min_value))
+        print("Max and min value of plot {}: {:.3f} and {:.3f}".format(i, max_value, min_value))
         if item['contour_fill_levels'][-1] < max_value:
-            print("Contour fills (max={:.2f}) do not cover max value of plot {}!"
+            print("Contour fills (max={:.3f}) do not cover max value of plot {}!"
                   .format(item['contour_fill_levels'][-1], i))
         if item['contour_fill_levels'][0] > min_value:
-            print("Contour fills (min={:.2f}) do not cover min value of plot {}!"
+            print("Contour fills (min={:.3f}) do not cover min value of plot {}!"
                   .format(item['contour_fill_levels'][0], i))
 
 
@@ -95,7 +95,7 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
     """"Individual plot of coastlines and contours.
 
     Args:
-        z (ndarray): 2D array containing contour plot data.
+        z (array): 2D array containing contour plot data.
         cf_lvls (list): Contour fill levels.
         cl_lvls (list): Contour line levels.
         cline_label_format (str, optional): Contour line label format string. Defaults to `cline_label_format_default`.
@@ -413,7 +413,7 @@ def percentile_plots_ref(plot_var, i_case, plot_var_ref, i_case_ref, plot_settin
     plot_panel_2x3(plot_items, column_titles, row_items)
 
 
-def plot_figure4():
+def plot_figure5():
     """" Generate integrated mean power plot. """
     column_titles = ["50 - 150m", "0 - 10km", "Ratio"]
 
@@ -458,7 +458,7 @@ def plot_figure3():
             "contour_line_levels": [
                 [1., 2., 3., 4.],
                 [3., 5., 7., 9.],
-                [7., 9., 11.],
+                [5., 7., 9., 11.],
             ],
             "colorbar_ticks": np.arange(0, 13, 2),
             "colorbar_tick_fmt": "{:.0f}",
@@ -469,7 +469,48 @@ def plot_figure3():
     percentile_plots("v_fixed", 0, plot_settings)
 
 
-def plot_figure7():
+def plot_figure4():
+    """" Generate fixed height power density plot. """
+    column_titles = ["5th percentile", "32nd percentile", "50th percentile"]
+
+    fixed_height_ref = 100.
+    fixed_height_id = list(fixed_heights).index(fixed_height_ref)
+
+    plot_item0 = {
+        'data': nc.variables["p_fixed_perc5"][fixed_height_id, :, :]*1e-3,
+        'contour_fill_levels': np.linspace(0, .03, 21),
+        'contour_line_levels': sorted([.003]+list(np.linspace(0, .03, 21)[::5])),
+        'contour_line_label_fmt': '%.3f',
+        'colorbar_ticks': np.linspace(0, .03, 21)[::5],
+        'colorbar_tick_fmt': '{:.3f}',
+        'colorbar_label': 'Power density [$kW/m^2$]',
+    }
+    plot_item1 = {
+        'data': nc.variables["p_fixed_perc32"][fixed_height_id, :, :]*1e-3,
+        'contour_fill_levels': np.linspace(0, .45, 21),
+        'contour_line_levels': sorted([.04]+list(np.linspace(0, .45, 21)[::4])),
+        'contour_line_label_fmt': '%.2f',
+        'colorbar_ticks': np.linspace(0, .45, 21)[::4],
+        'colorbar_tick_fmt': '{:.2f}',
+        'colorbar_label': 'Power density [$kW/m^2$]',
+    }
+    plot_item2 = {
+        'data': nc.variables["p_fixed_perc50"][fixed_height_id, :, :]*1e-3,
+        'contour_fill_levels': np.linspace(0, 1, 21),
+        'contour_line_levels': sorted([.1]+list(np.linspace(0, 1, 21)[::4])),
+        'contour_line_label_fmt': '%.2f',
+        'colorbar_ticks': np.linspace(0, 1, 21)[::4],
+        'colorbar_tick_fmt': '{:.2f}',
+        'colorbar_label': 'Power density [$kW/m^2$]',
+    }
+
+    plot_items = [plot_item0, plot_item1, plot_item2]
+
+    eval_contour_fill_levels(plot_items)
+    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+
+
+def plot_figure8():
     """" Generate baseline comparison wind speed plot. """
     plot_settings_absolute_row = {
         "color_label": 'Wind speed [m/s]',
@@ -494,10 +535,12 @@ def plot_figure7():
         ],
         'extend': 'max',
     }
-    percentile_plots_ref("v_ceiling", 1, "v_fixed", 0, plot_settings_absolute_row, plot_settings_relative_row)
+    percentile_plots_ref("v_ceiling", height_range_ceilings.index(500),
+                         "v_fixed", fixed_heights.index(100),
+                         plot_settings_absolute_row, plot_settings_relative_row)
 
 
-def plot_figure8_upper():
+def plot_figure9_upper():
     """" Generate baseline comparison wind power plot - upper part. """
     column_titles = ["5th percentile", "32nd percentile", "50th percentile"]
 
@@ -506,29 +549,29 @@ def plot_figure8_upper():
 
     plot_item0 = {
         'data': nc.variables["p_ceiling_perc5"][height_ceiling_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, .05, 21),
-        'contour_line_levels': np.linspace(0, .05, 21)[::4],
+        'contour_fill_levels': np.linspace(0, .04, 21),
+        'contour_line_levels': np.linspace(0, .04, 21)[::5],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, .05, 21)[::4],
+        'colorbar_ticks': np.linspace(0, .04, 21)[::5],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
     plot_item1 = {
         'data': nc.variables["p_ceiling_perc32"][height_ceiling_id, :, :]*1e-3,
         'contour_fill_levels': np.linspace(0, .6, 21),
-        'contour_line_levels': np.linspace(0, .6, 21)[::3],
+        'contour_line_levels': np.linspace(0, .6, 21)[::4],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, .6, 21)[::3],
-        'colorbar_tick_fmt': '{:.1f}',
+        'colorbar_ticks': np.linspace(0, .6, 21)[::4],
+        'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
     plot_item2 = {
         'data': nc.variables["p_ceiling_perc50"][height_ceiling_id, :, :]*1e-3,
         'contour_fill_levels': np.linspace(0, 1.3, 21),
-        'contour_line_levels': np.linspace(0, 1.3, 21)[::3],
+        'contour_line_levels': np.linspace(0, 1.3, 21)[::4],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, 1.3, 21)[::3],
-        'colorbar_tick_fmt': '{:.1f}',
+        'colorbar_ticks': np.linspace(0, 1.3, 21)[::4],
+        'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
 
@@ -538,7 +581,7 @@ def plot_figure8_upper():
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
 
-def plot_figure8_lower():
+def plot_figure9_lower():
     """" Generate baseline comparison wind power plot - lower part. """
     column_titles = None
 
@@ -568,6 +611,7 @@ def plot_figure8_lower():
         'colorbar_ticks': np.linspace(1, 3.5, 21)[::4],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
+        'extend': 'max',
     }
     plot_item2 = {
         'data': nc.variables["p_ceiling_perc50"][height_ceiling_id, :, :]
@@ -578,6 +622,7 @@ def plot_figure8_lower():
         'colorbar_ticks': np.linspace(1, 3.5, 21)[::4],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
+        'extend': 'max',
     }
 
     plot_items = [plot_item0, plot_item1, plot_item2]
@@ -586,7 +631,7 @@ def plot_figure8_lower():
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
 
-def plot_figure9():
+def plot_figure10():
     """" Generate power availability plot. """
     height_ceiling = 500.
     height_ceiling_id = list(height_range_ceilings).index(height_ceiling)
@@ -664,7 +709,7 @@ def plot_figure9():
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
 
-def plot_figure10():
+def plot_figure11():
     """" Generate 40 W/m^2 power availability plot for alternative height ceilings. """
     height_ceilings = [300., 1000., 1500.]
     height_ceiling_ids = [list(height_range_ceilings).index(height_ceiling) for height_ceiling in height_ceilings]
@@ -753,9 +798,10 @@ def plot_figure10():
 if __name__ == "__main__":
     plot_figure3()
     plot_figure4()
-    plot_figure7()
-    plot_figure8_upper()
-    plot_figure8_lower()
-    plot_figure9()
+    plot_figure5()
+    plot_figure8()
+    plot_figure9_upper()
+    plot_figure9_lower()
     plot_figure10()
+    plot_figure11()
     plt.show()
