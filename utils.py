@@ -165,12 +165,12 @@ def compute_level_heights(levels, surface_pressure, levels_temperature, levels_h
 
     Args:
         levels (list): Identifiers of model levels to evaluate - should be consecutive and include the lower level.
-        surface_pressure (array): Time trace of surface pressure [Pa].
-        levels_temperature (array): Time traces of temperature at model levels [K].
-        levels_humidity (array): Time traces of humidity at model levels [kg/kg].
+        surface_pressure (ndarray): Time trace of surface pressure [Pa].
+        levels_temperature (ndarray): Time traces of temperature at model levels [K].
+        levels_humidity (ndarray): Time traces of humidity at model levels [kg/kg].
 
     Returns:
-        tuple of array: Time traces of Full-level heights [m] and air densities [kg/m^3] at requested model levels.
+        tuple of ndarray: Time traces of Full-level heights [m] and air densities [kg/m^3] at requested model levels.
 
     Raises:
         AssertError: If requested model levels are not consecutive or don't include the lower level.

@@ -38,7 +38,7 @@ height_range_floor = 50.
 height_range_ceilings = list(nc.variables['height_range_ceiling'])
 fixed_heights = list(nc.variables['fixed_height'])
 integration_range_ids = list(nc.variables['integration_range_id'])
-p_integral_mean = list(nc.variables['p_integral_mean'])
+p_integral_mean = nc.variables['p_integral_mean']
 hours = nc.variables['time'][:]  # Hours since 1900-01-01 00:00:00, see: print(nc.variables['time']).
 print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(hours[-1]))
 
@@ -95,7 +95,7 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
     """"Individual plot of coastlines and contours.
 
     Args:
-        z (array): 2D array containing contour plot data.
+        z (ndarray): 2D array containing contour plot data.
         cf_lvls (list): Contour fill levels.
         cl_lvls (list): Contour line levels.
         cline_label_format (str, optional): Contour line label format string. Defaults to `cline_label_format_default`.

@@ -95,7 +95,7 @@ def plot_figure_5b(hours, v_req_alt, v_ceiling, optimal_heights, heights_of_inte
 
     Args:
         hours (list): Hour timestamps.
-        v_req_alt (array): Time series of wind speeds at `heights_of_interest`.
+        v_req_alt (ndarray): Time series of wind speeds at `heights_of_interest`.
         v_ceiling (list): Optimal wind speed time series resulting from variable-height analysis.
         optimal_heights (list): Time series of optimal heights corresponding to `v_ceiling`.
         heights_of_interest (list): Heights above the ground at which the wind speeds are evaluated.
@@ -173,7 +173,7 @@ def plot_weibull_fixed_and_ceiling(v_req_alt, heights_of_interest, plot_heights,
     """Plot Weibull distributions for multiple fixed heights and single variable-height case. Used for figure 6c & e.
 
     Args:
-        v_req_alt (array): Time series of wind speeds at `heights_of_interest`.
+        v_req_alt (ndarray): Time series of wind speeds at `heights_of_interest`.
         heights_of_interest (list): Heights above the ground at which the wind speeds are evaluated.
         plot_heights (list): Heights above the ground for which Weibulls are plotted.
         v_ceiling (list): Optimal wind speed time series resulting from variable-height analysis.
@@ -237,7 +237,7 @@ def plot_figure_6d(v_ceilings, ceiling_heights):
     """Plot Weibull distributions for multiple variable-height cases.
 
     Args:
-        v_ceilings (array): Optimal wind speed time series resulting from variable-height analyses.
+        v_ceilings (ndarray): Optimal wind speed time series resulting from variable-height analyses.
         ceiling_heights (list): The ceiling heights used in the variable-height analyses.
 
     """
