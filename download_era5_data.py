@@ -124,6 +124,38 @@ def get_request_basis(level_type):
                     "22:00:00/23:00:00",
             "format": "netcdf",
         }
+    elif level_type == 'ml_paper':
+        # Downloaded parameters (paramId/shortName):
+        #   U component of wind [m/s] (131/u)
+        #   V component of wind [m/s] (132/v)
+        era5_request = {
+            "class": "ea",
+            "expver": "1",
+            "stream": "oper",
+            "type": "an",
+            "levelist": "70/77/84/91/98/105/107/109/111/113/114/115/116/117/118/119/120/121/"
+                    "122/123/124/125/126/127/128/129/130/131/132/133/134/135/136/137",
+            "levtype": "ml",
+            "param": "131/132",
+            "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/"
+                    "11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/20:00:00/21:00:00/"
+                    "22:00:00/23:00:00",
+            "format": "netcdf",
+        }
+    elif level_type == 'sfc_paper':
+        # Downloaded parameters (paramId/shortName):
+        #   Geopotential [m**2/s**2] (129.128/z)
+        era5_request = {
+            "class": "ea",
+            "expver": "1",
+            "stream": "oper",
+            "type": "an",
+            "levtype": "sfc",
+            "param": "129.128",
+            "date": "1950-01-01",
+            "time": "00:00:00",
+            "format": "netcdf",
+        }
     else:
         raise ValueError("Level type not recognized.")
 
@@ -194,6 +226,36 @@ def download_all():
                 p = Process(target=download_data, args=(m, y, era5_request, file_name))
                 processes.append(p)
                 p.start()
+
+    for p in processes:
+        p.join()
+
+
+def download_all_paper():
+    """Download all the monthly data files in parallel to the target directory as specified in the config."""
+    years = range(start_year, final_year+1)
+    months = range(1, 13)
+
+    processes = []
+    for y in years:
+        for m in months:
+            era5_request = get_request_basis('ml_paper')
+            file_name_format = model_level_file_name_format
+            file_name = file_name_format.format(y, m)
+            p = Process(target=download_data, args=(m, y, era5_request, file_name))
+            processes.append(p)
+            p.start()
+
+    target_file = os.path.join(era5_data_dir, 'geopotential.netcdf')
+    if os.path.exists(target_file):
+        print("File ({}) already exists. To start the download, remove the file and try again."
+              .format(target_file))
+    else:
+        print("Saving data in: " + target_file)
+        era5_request = get_request_basis('sfc_paper')
+        p = Process(target=client.retrieve, args=("reanalysis-era5-complete", era5_request, target_file))
+        processes.append(p)
+        p.start()
 
     for p in processes:
         p.join()

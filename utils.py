@@ -136,10 +136,10 @@ def compute_level_height(t, q, level, ph_lev, ph_levplusone, h_h):
         dlog_p = np.log(ph_levplusone / ph_lev)
         alpha = 1. - ((ph_lev / (ph_levplusone - ph_lev)) * dlog_p)
 
-    # Integrate from previous (lower) half-level z_h to the full-level.
+    # Integrate from previous (lower) half-level h_h to the full-level.
     h_f = h_h + (t * r_d * alpha)/g
 
-    # Integrate from previous (lower) half-level z_h to the current half-level.
+    # Integrate from previous (lower) half-level h_h to the current half-level.
     h_h = h_h + (t * r_d * dlog_p)/g
 
     return h_h, h_f
