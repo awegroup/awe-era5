@@ -59,21 +59,6 @@ def hour_to_date(hour):
     return date
 
 
-def get_density_at_altitude(altitude):
-    """Barometric altitude formula for constant temperature, source: Meteorology for Scientists and Engineers.
-
-    Args:
-        altitude (float): Height above sea level [m].
-
-    Returns:
-        float: Density at requested altitude [kg/m^3].
-
-    """
-    rho_0 = 1.225  # Standard atmospheric density at sea level at the standard temperature.
-    h_p = 8.55e3  # Scale height for density.
-    return np.exp(-altitude/h_p)*rho_0
-
-
 def get_ph_levs(level, sp):
     """Get the half-level pressures for the requested ERA5 model level and the one after that. The a and b coefficients
     define the model levels and are provided in `L137 model level definitions`_.
