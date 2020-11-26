@@ -16,7 +16,7 @@ Attributes:
         Note that decreasing this model level number increases the height range that can be analyzed, but also the
         download size.
     output_file_name (str): Target name of processed data file.
-    n_lats_per_cluster: Number of latitudes read at once from netCDF file. (All longitudes are read at once.) Highest
+    read_n_lats_at_once: Number of latitudes read at once from netCDF file. (All longitudes are read at once.) Highest
         number allowed by memory capacity should be opted for reducing computation time. If number is chosen too high,
         memory error will occur.
 
@@ -37,4 +37,4 @@ upper_level = 122
 
 # Processing settings.
 output_file_name = "results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
-n_lats_per_cluster = 1
+read_n_lats_at_once = 1
