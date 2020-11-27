@@ -87,7 +87,7 @@ def get_surface_elevation(wind_lat, wind_lon):
 
     """
     # Load the NetCDF file containing the geopotential of Europe.
-    ds = xr.open_dataset(path_join(era5_data_dir, 'era5_geopotential.netcdf'), decode_times=False)
+    ds = xr.open_dataset(path_join(era5_data_dir, 'geopotential.netcdf'), decode_times=False)
 
     # Read the variables from the netCDF file.
     geopot_lat = ds['latitude'].values
