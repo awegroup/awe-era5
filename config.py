@@ -36,5 +36,5 @@ area = "65/-20/30/20"
 upper_level = 122
 
 # Processing settings.
-output_file_name = "/cephfs/user/s6lathim/results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
+output_file_name = "results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
 read_n_lats_at_once = 1
