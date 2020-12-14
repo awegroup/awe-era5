@@ -34,12 +34,16 @@ color_map = cm.YlOrRd
 nc = Dataset(output_file_name)
 lons = nc.variables['longitude'][:]
 lats = nc.variables['latitude'][:]
+print(lons)
+print(lats)
 height_range_floor = 50.
 height_range_ceilings = list(nc.variables['height_range_ceiling'])
 fixed_heights = list(nc.variables['fixed_height'])
 integration_range_ids = list(nc.variables['integration_range_id'])
+print(integration_range_ids)
 p_integral_mean = nc.variables['p_integral_mean']
 hours = nc.variables['time'][:]  # Hours since 1900-01-01 00:00:00, see: print(nc.variables['time']).
+print(hours)
 print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(hours[-1]))
 
 # Prepare the general map plot.
@@ -415,7 +419,7 @@ def percentile_plots_ref(plot_var, i_case, plot_var_ref, i_case_ref, plot_settin
 
 def plot_figure5():
     """" Generate integrated mean power plot. """
-    column_titles = ["50 - 150m", "0 - 10km", "Ratio"]
+    column_titles = ["50 - 150m", "10 - 500m", "Ratio"]#"0 - 10km", "Ratio"]
 
     plot_item0 = {
         'data': p_integral_mean[0, :, :]*1e-6,
@@ -427,23 +431,33 @@ def plot_figure5():
     }
     plot_item1 = {
         'data': p_integral_mean[1, :, :]*1e-6,
-        'contour_line_levels': np.linspace(0, 65, 21)[::4],
-        'contour_fill_levels': np.linspace(0, 65, 21),
-        'colorbar_ticks': np.linspace(0, 65, 21)[::4],
-        'colorbar_tick_fmt': '{:.0f}',
+        #'contour_line_levels': np.linspace(0, 65, 21)[::4],
+        #'contour_fill_levels': np.linspace(0, 65, 21),
+        #'colorbar_ticks': np.linspace(0, 65, 21)[::4],
+        #'colorbar_tick_fmt': '{:.0f}',
+        'contour_line_levels': np.linspace(0, 1.5, 21)[::4],
+        'contour_fill_levels': np.linspace(0, 1.5, 21),
+        'colorbar_ticks': np.linspace(0, 1.5, 21)[::4],
+	'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': '[$MWm/m^2$]',
     }
+
     plot_item2 = {
         'data': plot_item1['data']/plot_item0['data'],
         'log_scale': True,
-        'contour_line_levels': [300., 600.],
-        'contour_fill_levels': np.logspace(np.log10(100.0), np.log10(6700.0), num=16),
-        'colorbar_ticks': [100., 300., 1000., 3000.],
+        #'contour_line_levels': [300., 600.],
+        #'contour_fill_levels': np.logspace(np.log10(100.0), np.log10(6700.0), num=16),
+        #'colorbar_ticks': [100., 300., 1000., 3000.],
+        #'colorbar_tick_fmt': '{:.0f}',
+        'contour_line_levels': [10, 17],
+        'contour_fill_levels': np.logspace(np.log10(5), np.log10(20.0), num=16),
+        'colorbar_ticks': [5, 10, 15, 20],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Increase factor [-]',
     }
 
     plot_items = [plot_item0, plot_item1, plot_item2]
+    print(plot_item1['data']/plot_item0['data'])
 
     eval_contour_fill_levels(plot_items)
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
@@ -796,12 +810,12 @@ def plot_figure11():
 
 
 if __name__ == "__main__":
-    plot_figure3()
-    plot_figure4()
-    plot_figure5()
-    plot_figure8()
-    plot_figure9_upper()
-    plot_figure9_lower()
-    plot_figure10()
+    #plot_figure3()
+    #plot_figure4()
+    #plot_figure5()
+    #plot_figure8()
+    #plot_figure9_upper()
+    #plot_figure9_lower()
+    #plot_figure10()
     plot_figure11()
     plt.show()
