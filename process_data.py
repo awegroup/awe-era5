@@ -19,10 +19,10 @@ from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, read_n_lats_at_once
 
-# Set the relevant heights for the different analysis types in meter.
+# Set the relevant heights for the different analysis types in meter.#, 1500.],
 analyzed_heights = {
     'floor': 50.,
-    'ceilings': [200., 300., 400., 500.],
+    'ceilings': [200., 300., 400., 500., 1000.],
     'fixed': [100.],
     'integration_ranges': [(50., 150.), (10., 500.)],
 }
@@ -120,7 +120,6 @@ def read_raw_data(start_year, final_year):
         for m in range(1, 13):
             ml_files.append(path_join(era5_data_dir, model_level_file_name_format.format(y, m)))
             sfc_files.append(path_join(era5_data_dir, surface_file_name_format.format(y, m)))
-
     # Load the data from the NetCDF files.
     ds = xr.open_mfdataset(ml_files+sfc_files, decode_times=False)
 
@@ -498,4 +497,5 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
 
 if __name__ == '__main__':
+    print("processing monthly ERA5 data from the years {:d} to {:d}".format(start_year, final_year))
     process_complete_grid(output_file_name)
