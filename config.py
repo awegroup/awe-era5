@@ -3,7 +3,7 @@
 
 Attributes:
     start_year (int): Download and process the wind data starting from this year - in four-digit format.
-    final_year (int): Download and process the wind data up to this year - in four-digit format.
+    final_year (int): Download andf process the wind data up to this year - in four-digit format.
     era5_data_dir (str): Target directory path for downloading and reading data files.
     model_level_file_name_format (str): Target name of the wind data files. Python's format() is used to fill in year
         and month at placeholders.
@@ -25,16 +25,16 @@ Attributes:
 
 """
 # General settings.
-start_year = 2019
-final_year = 2019
-era5_data_dir = '/cephfs/user/s6lathim/ERA5Data/'
+start_year = 2010
+final_year = 2010
+era5_data_dir = '/cephfs/user/s6lathim/ERA5Data-112/'
 model_level_file_name_format = "{:d}_europe_{:d}_130_131_132_133_135.nc"  # 'ml_{:d}_{:02d}.netcdf'
-surface_file_name_format = 'sfc_{:d}_{:02d}.netcdf'  #"{:d}_europe_{:d}_152.nc"
+surface_file_name_format = "{:d}_europe_{:d}_152.nc" # 'sfc_{:d}_{:02d}.netcdf' 
 
 # Downloading settings.
 area = "65/-20/30/20"
-upper_level = 122
+upper_level = 112 
 
 # Processing settings.
-output_file_name = "/cephfs/user/s6lathim/ERA5Data/results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
-read_n_lats_at_once = 1
+output_file_name = "/cephfs/user/s6lathim/ERA5Data/results/processed_data_{:d}_{:d}_params2.nc".format(start_year, final_year)
+read_n_lats_at_once = 5
