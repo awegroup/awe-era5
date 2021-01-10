@@ -3,7 +3,7 @@
 
 Attributes:
     start_year (int): Download and process the wind data starting from this year - in four-digit format.
-    final_year (int): Download andf process the wind data up to this year - in four-digit format.
+    final_year (int): Download and process the wind data up to this year - in four-digit format.
     era5_data_dir (str): Target directory path for downloading and reading data files.
     model_level_file_name_format (str): Target name of the wind data files. Python's format() is used to fill in year
         and month at placeholders.

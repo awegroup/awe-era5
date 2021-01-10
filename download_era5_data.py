@@ -101,7 +101,7 @@ def get_request_basis(level_type):
             "expver": "1",
             "stream": "oper",
             "type": "an",
-            "levelist": "{}/to/137".format(upper_level), #112".format(upper_level),
+            "levelist": "{}/to/137".format(upper_level), 
             "levtype": "ml",
             "param": "130/131/132/133",
             "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/10:00:00/"
