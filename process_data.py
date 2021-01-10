@@ -369,7 +369,7 @@ def write_results_to_output_netcdf(output_variables, result_arrays):
 
 def create_and_configure_output_netcdf(hours, lats, lons, output_file):
     # Write output to a new NetCDF file.
-    nc_out = Dataset(output_file, "w", format="NETCDF3_64BIT_OFFSET")
+    nc_out = Dataset(output_file, "w", format="NETCDF4")
     nc_out.createDimension("time", len(hours))
     nc_out.createDimension("latitude", len(lats))
     nc_out.createDimension("longitude", len(lons))
