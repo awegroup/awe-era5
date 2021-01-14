@@ -4,9 +4,9 @@
 
 Example::
     start processing all latitudes:
-        $ python process_data.py 
+        $ python process_latitudewise.py 
     start processing the latitude referred to by LatitudeIndex:
-        $ python process_data.py -l LatitudeIndex
+        $ python process_latitudewise.py -l LatitudeIndex
 
 """
 from netCDF4 import Dataset
