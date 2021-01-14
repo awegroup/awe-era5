@@ -26,10 +26,10 @@ Attributes:
 """
 # General settings.
 start_year = 2011
-final_year = 2017
-era5_data_dir = '/cephfs/user/s6lathim/ERA5Data-112/'
-model_level_file_name_format = "{:d}_europe_{:d}_130_131_132_133_135.nc"  # 'ml_{:d}_{:02d}.netcdf'
-surface_file_name_format = "{:d}_europe_{:d}_152.nc" # 'sfc_{:d}_{:02d}.netcdf' 
+final_year = 2011
+era5_data_dir = '~/ERA5Data/'
+model_level_file_name_format = 'ml_{:d}_{:02d}.netcdf'  # "{:d}_europe_{:d}_130_131_132_133_135.nc"
+surface_file_name_format = 'sfc_{:d}_{:02d}.netcdf'  #"{:d}_europe_{:d}_152.nc" 
 
 
 # Downloading settings.
@@ -37,6 +37,6 @@ area = "65/-20/30/20"
 upper_level = 112 
 
 # Processing settings.
-output_file_name = "/cephfs/user/s6lathim/ERA5Data/results/lats/processed_data_europe_{:d}_{:d}.nc".format(start_year, final_year)
+output_file_name = "results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
 read_n_lats_at_once = 1
 
