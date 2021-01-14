@@ -1,11 +1,12 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-"""Process wind data for adjacent years and save processed data to a NetCDF file. Settings, such as target file name,
-are imported from config.py.
+"""Process wind data for adjacent years and save processed data to a NetCDF file for each latitude, respectively. Settings, such as the analyzed timespan and structure of target file name, are imported from config.py.
 
 Example::
-
-    $ python process_data.py
+    start processing all latitudes:
+        $ python process_data.py 
+    start processing the latitude referred to by LatitudeIndex:
+        $ python process_data.py -l LatitudeIndex
 
 """
 from netCDF4 import Dataset
@@ -571,14 +572,16 @@ if __name__ == '__main__':
         try:
             opts, args = getopt.getopt(sys.argv[1:], "hl:", ["help", "latitudeIndex="])
         except getopt.GetoptError:
+            # Cannot match input with any options provided, display help and end
             print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude LatitudeIndex \n -h >> display help ")
             sys.exit()
         for opt, arg in opts:
             if opt in ("-h", "--help"):
+                # Help argument called, display help and end
                 print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude by index LatitudeIndex \n -h >> display help ")
                 sys.exit()
             elif opt in ("-l", "--latitudeIndex"):
-                # Select only a specific latitude by index
+                # Specific latitude by index selected via call e.g. 'python parallel_process_data.py -l 0' for first latitude 
                 latitude_number_input = int(arg)
     else:
         # No user input given: process all latitudes
