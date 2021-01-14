@@ -192,8 +192,7 @@ def analyze_latitude(lat, lenLons, levels, lenHours, v_levels_east, v_levels_nor
         res (xarray): results of statistical analysis 
         counter (int): increased iteration counter
     """
-    # Processed latitude written out each time --> i_lat is defined from 0 on each time, same as row_in_v_levels
-    row_in_v_levels = 0 
+    # Processed latitude written out each time --> i_lat is defined as 0
     i_lat = 0
     for i_lon in range(lenLons):
         counter += 1
