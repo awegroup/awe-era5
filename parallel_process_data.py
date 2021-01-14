@@ -17,7 +17,7 @@ from os.path import join as path_join
 
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
-    output_file_name, read_n_lats_at_once
+    output_file_name
 
 import sys, getopt
 
@@ -160,11 +160,11 @@ def check_for_missing_data(hours):
 
 
 
-def process_lats_subset(lats_subset, lenLons, levels, lenHours, v_levels_east, v_levels_north, v_levels, t_levels, q_levels, surface_pressure, heights_of_interest, analyzed_heights_ids, res, start_time, counter, total_iters):
-    """"Statistical processing of the given latitude subset of the dataset
+def analyze_latitude(lat, lenLons, levels, lenHours, v_levels_east, v_levels_north, v_levels, t_levels, q_levels, surface_pressure, heights_of_interest, analyzed_heights_ids, res, start_time, counter, total_iters):
+    """"Statistical analysis of the given latitude of the dataset
 
     Args:
-        lats_subset (list): latitudes to be analyzed
+        lat (float): latitude to be analyzed
 
         dataset input:
             lenLons (int): number of longitudes 
@@ -192,106 +192,104 @@ def process_lats_subset(lats_subset, lenLons, levels, lenHours, v_levels_east, v
         res (xarray): results of statistical analysis 
         counter (int): increased iteration counter
     """
-    for i_lat in range(len(lats_subset)):
-        # Processed latitude subsets are written out each time, thus res is filled anew for each processed subset
-        #     --> i_lat is defined from 0 on each time, same as row_in_v_levels
-        row_in_v_levels = i_lat
-        for i_lon in range(lenLons):
-            counter += 1
-            level_heights, density_levels = compute_level_heights(levels,
-                                                                  surface_pressure[:, row_in_v_levels, i_lon],
-                                                                  t_levels[:, :, row_in_v_levels, i_lon],
-                                                                  q_levels[:, :, row_in_v_levels, i_lon])
+    # Processed latitude written out each time --> i_lat is defined from 0 on each time, same as row_in_v_levels
+    row_in_v_levels = 0 
+    i_lat = 0
+    for i_lon in range(lenLons):
+        counter += 1
+        level_heights, density_levels = compute_level_heights(levels,
+                                                              surface_pressure[:, i_lon],
+                                                              t_levels[:, :, i_lon],
+                                                              q_levels[:, :, i_lon])
+        # Determine wind at altitudes of interest by means of interpolating the raw wind data.
+        v_req_alt = np.zeros((lenHours, len(heights_of_interest)))  # Result array for writing interpolated data
+        rho_req_alt = np.zeros((lenHours, len(heights_of_interest)))
 
-            # Determine wind at altitudes of interest by means of interpolating the raw wind data.
-            v_req_alt = np.zeros((lenHours, len(heights_of_interest)))  # Result array for writing interpolated data
-            rho_req_alt = np.zeros((lenHours, len(heights_of_interest)))
-
-            for i_hr in range(lenHours):
-                if not np.all(level_heights[i_hr, 0] > heights_of_interest):
-                    raise ValueError("Requested height ({:.2f} m) is higher than height of highest model level."
-                                     .format(level_heights[i_hr, 0]))
-                v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
-                                               v_levels[i_hr, ::-1, row_in_v_levels, i_lon])
-                rho_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
+        for i_hr in range(lenHours):
+            if not np.all(level_heights[i_hr, 0] > heights_of_interest):
+                raise ValueError("Requested height ({:.2f} m) is higher than height of highest model level."
+                                 .format(level_heights[i_hr, 0]))
+            v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
+                                               v_levels[i_hr, ::-1, i_lon])
+            rho_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
                                                  density_levels[i_hr, ::-1])
-            p_req_alt = calc_power(v_req_alt, rho_req_alt)
+        p_req_alt = calc_power(v_req_alt, rho_req_alt)
 
-            # Determine wind statistics at fixed heights of interest.
-            for i_out, fixed_height_id in enumerate(analyzed_heights_ids['fixed']):
-                v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_req_alt[:, fixed_height_id])
-                res['fixed']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
-                res['fixed']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
-                res['fixed']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
-                res['fixed']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
+        # Determine wind statistics at fixed heights of interest.
+        for i_out, fixed_height_id in enumerate(analyzed_heights_ids['fixed']):
+            v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_req_alt[:, fixed_height_id])
+            res['fixed']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
+            res['fixed']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
+            res['fixed']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
+            res['fixed']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
 
-                v_ranks = get_percentile_ranks(v_req_alt[:, fixed_height_id], [4., 8., 14., 25.])
-                res['fixed']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
-                res['fixed']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
-                res['fixed']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
-                res['fixed']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
+            v_ranks = get_percentile_ranks(v_req_alt[:, fixed_height_id], [4., 8., 14., 25.])
+            res['fixed']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
+            res['fixed']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
+            res['fixed']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
+            res['fixed']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
 
-                p_fixed_height = p_req_alt[:, fixed_height_id]
+            p_fixed_height = p_req_alt[:, fixed_height_id]
 
-                p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_fixed_height)
-                res['fixed']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
-                res['fixed']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
-                res['fixed']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
-                res['fixed']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
+            p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_fixed_height)
+            res['fixed']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
+            res['fixed']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
+            res['fixed']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
+            res['fixed']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
 
-                p_ranks = get_percentile_ranks(p_fixed_height, [40., 300., 1600., 9000.])
-                res['fixed']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
-                res['fixed']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
-                res['fixed']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
-                res['fixed']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
+            p_ranks = get_percentile_ranks(p_fixed_height, [40., 300., 1600., 9000.])
+            res['fixed']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
+            res['fixed']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
+            res['fixed']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
+            res['fixed']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
 
-            # Integrate power along the altitude.
-            for range_id in integration_range_ids:
-                height_id_start = analyzed_heights_ids['integration_ranges'][range_id][1]
-                height_id_final = analyzed_heights_ids['integration_ranges'][range_id][0]
+        # Integrate power along the altitude.
+        for range_id in integration_range_ids:
+            height_id_start = analyzed_heights_ids['integration_ranges'][range_id][1]
+            height_id_final = analyzed_heights_ids['integration_ranges'][range_id][0]
 
-                p_integral = []
-                x = heights_of_interest[height_id_start:height_id_final + 1]
-                for i_hr in range(lenHours):
-                    y = p_req_alt[i_hr, height_id_start:height_id_final+1]
-                    p_integral.append(-np.trapz(y, x))
+            p_integral = []
+            x = heights_of_interest[height_id_start:height_id_final + 1]
+            for i_hr in range(lenHours):
+                y = p_req_alt[i_hr, height_id_start:height_id_final+1]
+                p_integral.append(-np.trapz(y, x))
 
-                res['integration_ranges']['wind_power_density']['mean'][range_id, i_lat, i_lon] = np.mean(p_integral)
+            res['integration_ranges']['wind_power_density']['mean'][range_id, i_lat, i_lon] = np.mean(p_integral)
 
-            # Determine wind statistics for ceiling cases.
-            for i_out, ceiling_id in enumerate(analyzed_heights_ids['ceilings']):
-                # Find the height maximizing the wind speed for each hour.
-                v_ceiling = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
-                v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + ceiling_id
-                # optimal_heights = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
+        # Determine wind statistics for ceiling cases.
+        for i_out, ceiling_id in enumerate(analyzed_heights_ids['ceilings']):
+            # Find the height maximizing the wind speed for each hour.
+            v_ceiling = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
+            v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + ceiling_id
+            # optimal_heights = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
 
-                # rho_ceiling = get_density_at_altitude(optimal_heights + surf_elev)
-                rho_ceiling = rho_req_alt[np.arange(lenHours), v_ceiling_ids]
-                p_ceiling = calc_power(v_ceiling, rho_ceiling)
+            # rho_ceiling = get_density_at_altitude(optimal_heights + surf_elev)
+            rho_ceiling = rho_req_alt[np.arange(lenHours), v_ceiling_ids]
+            p_ceiling = calc_power(v_ceiling, rho_ceiling)
 
-                v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_ceiling)
-                res['ceilings']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
-                res['ceilings']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
-                res['ceilings']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
-                res['ceilings']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
+            v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_ceiling)
+            res['ceilings']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
+            res['ceilings']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
+            res['ceilings']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
+            res['ceilings']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
 
-                v_ranks = get_percentile_ranks(v_ceiling, [4., 8., 14., 25.])
-                res['ceilings']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
-                res['ceilings']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
-                res['ceilings']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
-                res['ceilings']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
+            v_ranks = get_percentile_ranks(v_ceiling, [4., 8., 14., 25.])
+            res['ceilings']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
+            res['ceilings']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
+            res['ceilings']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
+            res['ceilings']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
 
-                p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_ceiling)
-                res['ceilings']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
-                res['ceilings']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
-                res['ceilings']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
-                res['ceilings']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
+            p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_ceiling)
+            res['ceilings']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
+            res['ceilings']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
+            res['ceilings']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
+            res['ceilings']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
 
-                p_ranks = get_percentile_ranks(p_ceiling, [40., 300., 1600., 9000.])
-                res['ceilings']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
-                res['ceilings']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
-                res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
-                res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
+            p_ranks = get_percentile_ranks(p_ceiling, [40., 300., 1600., 9000.])
+            res['ceilings']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
+            res['ceilings']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
+            res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
+            res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
 
     print('Locations analyzed: ({}/{}).'.format(counter, total_iters))
     time_lapsed = float(timer()-start_time)
@@ -319,10 +317,8 @@ def process_complete_grid(output_file, subset_number_input):
     total_iters = len(lats) * len(lons)
     start_time = timer()
 
-    # Reading the data of all grid points from the NetCDF file all at once requires a lot of memory. On the other hand,
-    # reading the data of all grid points one by one takes up a lot of CPU. Therefore, the dataset is analysed in
-    # pieces: the subsets are read and processed consecutively.
-    n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_at_once))
+    # All latitudes are processed individually
+    n_subsets = len(lats)
 
     if subset_number_input == (-1):
         i_subset = 0
@@ -333,25 +329,25 @@ def process_complete_grid(output_file, subset_number_input):
         i_subset = subset_number_input
         total_iters = len(lons)
 
-    while i_subset < n_subsets:
-        i_lat0 = i_subset * read_n_lats_at_once
-        if i_lat0+read_n_lats_at_once < len(lats):
-            lats_subset = range(i_lat0, i_lat0 + read_n_lats_at_once)
-        else:
-            lats_subset = range(i_lat0, len(lats))
-        subLats = lats[lats_subset]
+        n_lats = n_subsets
+        i_latitude = i_subset
 
-        print("{:.0f} latidude subset(s) available for processing, currently processing subset {:.2f} from latitude {:.2f} to {:.0f}".format(n_subsets, i_subset, subLats[0], subLats[-1]))
+    while i_latitude < n_lats:
+        lat = lats[i_latitude]
+        
+
+        print("{:.0f} latidude subset(s) available for processing, currently processing subset {:.2f} for latitude {:.2f}".format(n_lats, i_latitude, lat))
 
 	# Configure output/results for this subset
         fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables = create_and_configure_output_netcdf(
-            hours, subLats, lons, output_file)
+            hours, lat, lons, output_file)
 
-        res = initialize_result_arrays(subLats, lons)
+        # Initialize single latitude result array
+        res = initialize_result_arrays(lons)
 
         # Write data corresponding to the dimensions to the output file.
         hours_out[:] = hours
-        lats_out[:] = subLats
+        lats_out[:] = lat 
         lons_out[:] = lons
 
         height_range_ceilings_out[:] = analyzed_heights['ceilings']
@@ -361,28 +357,28 @@ def process_complete_grid(output_file, subset_number_input):
 
 
     
-        v_levels_east = ds.variables['u'][:, i_highest_level:, lats_subset, :].values
-        v_levels_north = ds.variables['v'][:, i_highest_level:, lats_subset, :].values
+        v_levels_east = ds.variables['u'][:, i_highest_level:, i_latitude, :].values
+        v_levels_north = ds.variables['v'][:, i_highest_level:, i_latitude, :].values
         v_levels = (v_levels_east**2 + v_levels_north**2)**.5
     
-        t_levels = ds.variables['t'][:, i_highest_level:, lats_subset, :].values
-        q_levels = ds.variables['q'][:, i_highest_level:, lats_subset, :].values
+        t_levels = ds.variables['t'][:, i_highest_level:, i_latitude, :].values
+        q_levels = ds.variables['q'][:, i_highest_level:, i_latitude, :].values
 
         try:
-            surface_pressure = ds.variables['sp'][:, lats_subset, :].values
+            surface_pressure = ds.variables['sp'][:, i_latitude, :].values
         except KeyError:
-            surface_pressure = np.exp(ds.variables['lnsp'][:, lats_subset, :].values)
+            surface_pressure = np.exp(ds.variables['lnsp'][:, i_latitude, :].values)
 
-        # Statistical analysis of latitude subset
-        res, counter = process_lats_subset(lats_subset, len(lons), levels, len(hours), v_levels_east, v_levels_north, v_levels, t_levels, q_levels, surface_pressure, heights_of_interest, analyzed_heights_ids, res, start_time, counter, total_iters)
+        # Statistical analysis of latitude 
+        res, counter = analyze_latitude(lat, len(lons), levels, len(hours), v_levels_east, v_levels_north, v_levels, t_levels, q_levels, surface_pressure, heights_of_interest, analyzed_heights_ids, res, start_time, counter, total_iters)
 
         write_results_to_output_netcdf(output_variables, res)
 
-        # Handle user input: if user input was given only process one subset!
+        # Handle user input: if latitude user input was given only process one latitude
         if subset_number_input == (-1):
-            i_subset += 1
+            i_latitude += 1
         else:
-            i_subset = n_subsets
+            i_latitude = n_lats
 
     nc_out.close()  # Close the output NetCDF file.
     ds.close()  # Close the input NetCDF file.
@@ -436,21 +432,17 @@ def write_results_to_output_netcdf(output_variables, result_arrays):
                         output_variables[analysis_type][property][stats_operation][stats_arg][:] = result_arrays[analysis_type][property][stats_operation][stats_arg]
 
 
-def create_and_configure_output_netcdf(hours, lats, lons, output_file):
+def create_and_configure_output_netcdf(hours, lat, lons, output_file):
+    # configured as single latitude file
     outputList = output_file.split('.')
     if not (len(outputList) == 2):
         raise ValueError("Requested output filename (config.py) contains multiple dots - not conform with the single latitude subset output filename format.")
-    if not (np.all(lats[0] == int(lats[0]) and lats[-1] == int(lats[-1]))):
-        raise ValueError("Requested output filename contains only integer latitude values but the chosen latitudes are decimal numbers - might cause overwriting problems. Change either accordingly.")
-    if (len(lats) > 1): 
-        output_file = outputList[0] + '_lats_' + str(lats[0]) + '-' + str(lats[-1]) + '.' + outputList[-1]
-    else:
-        output_file = outputList[0] + '_lats_' + str(lats[0]) + '.' + outputList[-1]
+    output_file = outputList[0] + '_lat_' + str(lat) + '.' + outputList[-1]
 
     # Write output to a new NetCDF file.
     nc_out = Dataset(output_file, "w", format="NETCDF4")
     nc_out.createDimension("time", len(hours))
-    nc_out.createDimension("latitude", len(lats))
+    nc_out.createDimension("latitude", 1)
     nc_out.createDimension("longitude", len(lons))
     nc_out.createDimension("height_range_ceiling", dimension_sizes['ceilings'])
     nc_out.createDimension("fixed_height", dimension_sizes['fixed'])
@@ -502,19 +494,20 @@ def create_and_configure_output_netcdf(hours, lats, lons, output_file):
     return fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables
 
 
-def initialize_result_arrays(lats, lons):
+def initialize_result_arrays(lons):
     # Arrays for temporary saving the results during processing, after which the results are written all at once to the
     # output file.
+    # results always for single latitude files -> len(lats) is set to 1
     result_arrays = create_empty_dict()
 
     for analysis_type in result_arrays:
         for property in result_arrays[analysis_type]:
             for stats_operation in result_arrays[analysis_type][property]:
                 if stats_operation == 'mean':
-                    result_arrays[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                    result_arrays[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], 1, len(lons)))
                 else:
                     for stats_arg in result_arrays[analysis_type][property][stats_operation]:
-                        result_arrays[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                        result_arrays[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], 1, len(lons)))
 
     return result_arrays
 
