@@ -7,7 +7,6 @@ Example::
     $ python plot_maps.py
 
 """
-from netCDF4 import Dataset
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
