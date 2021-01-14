@@ -298,12 +298,12 @@ def analyze_latitude(lat, lenLons, levels, lenHours, v_levels_east, v_levels_nor
     return(res, counter)
 
 
-def process_complete_grid(output_file, subset_number_input):
-    """"Execute analyses on the data of the complete grid and save the processed data to a netCDF4 file.
+def process_request(output_file, latitude_number_input):
+    """"Prepare and execute analyses on the data of the requested latitude(s) and save the processed data to a netCDF4 file.
 
     Args:
         output_file (str): Name of netCDF file to which the results are saved.
-        subset_number_input (int): Command line argument input choosing a specific latitude subset - (-1) for all subsets
+        latitude_number_input (int): Command line argument input choosing a specific latitude - (-1) for all latitudes
 
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
@@ -317,27 +317,24 @@ def process_complete_grid(output_file, subset_number_input):
     start_time = timer()
 
     # All latitudes are processed individually
-    n_subsets = len(lats)
+    n_lats = len(lats)
 
-    if subset_number_input == (-1):
-        i_subset = 0
-    elif subset_number_input >= n_subsets:
-        raise ValueError("User input subset number ({:.0f}) larger than total maximal subset index ({:.0f}) starting at 0.".format(subset_number_input, (n_subsets-1)))
+    if latitude_number_input == (-1):
+        i_latitude = 0
+    elif latitude_number_input >= n_lats:
+        raise ValueError("User input latitude index ({:.0f}) larger than maximal latitude index ({:.0f}) starting at 0.".format(latitude_number_input, (n_lats-1)))
     else:
-        # User input given - processing only one latitude subset:
-        i_subset = subset_number_input
+        # User input given - processing only one latitude:
+        i_latitude = latitude_number_input
         total_iters = len(lons)
-
-        n_lats = n_subsets
-        i_latitude = i_subset
 
     while i_latitude < n_lats:
         lat = lats[i_latitude]
         
 
-        print("{:.0f} latidude subset(s) available for processing, currently processing subset {:.2f} for latitude {:.2f}".format(n_lats, i_latitude, lat))
+        print("{:.0f} latidudes available for processing, currently processing index {:.2f} referring to latitude {:.2f}".format(n_lats, i_latitude, lat))
 
-	# Configure output/results for this subset
+	# Configure output/results for this latitude
         fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables = create_and_configure_output_netcdf(
             hours, lat, lons, output_file)
 
@@ -374,7 +371,7 @@ def process_complete_grid(output_file, subset_number_input):
         write_results_to_output_netcdf(output_variables, res)
 
         # Handle user input: if latitude user input was given only process one latitude
-        if subset_number_input == (-1):
+        if latitude_number_input == (-1):
             i_latitude += 1
         else:
             i_latitude = n_lats
@@ -435,7 +432,7 @@ def create_and_configure_output_netcdf(hours, lat, lons, output_file):
     # configured as single latitude file
     outputList = output_file.split('.')
     if not (len(outputList) == 2):
-        raise ValueError("Requested output filename (config.py) contains multiple dots - not conform with the single latitude subset output filename format.")
+        raise ValueError("Requested output filename (config.py) contains multiple dots - not conform with the single latitude output filename format.")
     output_file = outputList[0] + '_lat_' + str(lat) + '.' + outputList[-1]
 
     # Write output to a new NetCDF file.
@@ -572,21 +569,21 @@ if __name__ == '__main__':
     # Read command-line arguments 
     if len(sys.argv) > 1:
         try:
-            opts, args = getopt.getopt(sys.argv[1:], "hs:", ["help", "subset="])
+            opts, args = getopt.getopt(sys.argv[1:], "hl:", ["help", "latitudeIndex="])
         except getopt.GetoptError:
-            print ("parallel_process_data.py -s SubsetNumber >> process individual latitude subset SubsetNumber \n -h >> display help ")
+            print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude LatitudeIndex \n -h >> display help ")
             sys.exit()
         for opt, arg in opts:
             if opt in ("-h", "--help"):
-                print ("parallel_process_data.py -s SubsetNumber >> process individual latitude subset SubsetNumber \n -h >> display help ")
+                print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude by index LatitudeIndex \n -h >> display help ")
                 sys.exit()
-            elif opt in ("-s", "--subset"):
-                # Select only a specific latitude subset
-                subset_number_input = int(arg)
+            elif opt in ("-l", "--latitudeIndex"):
+                # Select only a specific latitude by index
+                latitude_number_input = int(arg)
     else:
-        # No user input given: process all subsets
-        subset_number_input = -1
-    print("Subset(s) to be analysed: {:.0f}, (-1) for all subsets".format(subset_number_input))
+        # No user input given: process all latitudes
+        latitude_number_input = -1
+    print("Index of latitude(s) to be analysed: {:.0f}, (-1) for all latitudes".format(latitude_number_input))
 
     # Start processing
-    process_complete_grid(output_file_name, subset_number_input)
+    process_request(output_file_name, latitude_number_input)
