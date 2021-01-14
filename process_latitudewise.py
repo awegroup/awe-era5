@@ -573,15 +573,15 @@ if __name__ == '__main__':
             opts, args = getopt.getopt(sys.argv[1:], "hl:", ["help", "latitudeIndex="])
         except getopt.GetoptError:
             # Cannot match input with any options provided, display help and end
-            print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude LatitudeIndex \n -h >> display help ")
+            print ("process_latitudewise.py -l LatitudeIndex >> process individual latitude LatitudeIndex \n -h >> display help ")
             sys.exit()
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                 # Help argument called, display help and end
-                print ("parallel_process_data.py -l LatitudeIndex >> process individual latitude by index LatitudeIndex \n -h >> display help ")
+                print ("process_latitudewise.py -l LatitudeIndex >> process individual latitude by index LatitudeIndex \n -h >> display help ")
                 sys.exit()
             elif opt in ("-l", "--latitudeIndex"):
-                # Specific latitude by index selected via call e.g. 'python parallel_process_data.py -l 0' for first latitude 
+                # Specific latitude by index selected via call e.g. 'python process_latitudewise.py -l 0' for first latitude 
                 latitude_number_input = int(arg)
     else:
         # No user input given: process all latitudes
