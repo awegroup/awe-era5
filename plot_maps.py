@@ -4,7 +4,9 @@
 
 Example::
 
-    $ python plot_maps.py
+    $ python plot_maps.py              : plot from files with maximal subset id of the preset value
+    $ python plot_maps.py -m max_id    : plot from files with maximal subset id of max_id
+    $ python plot_maps.py -h           : display this help
 
 """
 import xarray as xr
@@ -33,36 +35,34 @@ n_line_levels_default = 6
 color_map = cm.YlOrRd
 
 # Load the processed data from the NetCDF file.
-# user input 
-if len(sys.argv) > 1:
+
+# find all subset files matching the settings in config.py - including all until max_subset_id 
+max_subset_id = 35
+#change max_subset_id if user input is given:
+if len(sys.argv) > 1: 
+    help = """
+    python plot_maps.py              : plot from files with maximal subset id of {}
+    python plot_maps.py -m max_id    : plot from files with maximal subset id of max_id
+    python plot_maps.py -h           : display this help
+    """.format(max_subset_id)
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hl", ["help", "latitudes"])
-    except getopt.GetoptError:
-        print ("plot_maps.py -l >> process individual latitude files \n -h >> display help")
+        opts, args = getopt.getopt(sys.argv[1:], "hm:", ["help", "maxid="])
+    except getopt.GetoptError:     # User input not given correctly, display help and end
+        print(help)
         sys.exit()
     for opt, arg in opts:
-        if opt in ("-h", "--help"):
-            print("plot_maps.py -l >> process individual latitude files \n -h >> display help")
+        if opt in ("-h", "--help"):    # Help argument called, display help and end
+            print (help)
             sys.exit()
-        elif opt in ("-l", "--latitudes"):
-            # find all latitude files matching the output_file_name specified in config.py
-            output_file_name_short =  output_file_name.split('/')[-1]
-            output_dir = output_file_name[:-len(output_file_name_short)]
-            output_file_name_prefix = output_file_name_short.split('.')[0] + '_' 
+        elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
+            max_subset_id = int(arg)
 
-            # sorting of provided latitudes included
-            lats = [f.split('_')[-1][:-(len(f.split('.')[-1])+1)] for f in os.listdir(output_dir) if f.split("/")[-1].split("lats")[0] == output_file_name_prefix]
-            lats.sort(key=float) 
-            print(str(len(lats)) + ' latitudes found in directory ' + output_dir + ' for the years ' + str(start_year) + ' to ' + str(final_year) + ':')
-            print(lats)
+all_year_subset_files = [output_file_name.format(start_year, final_year, subset_id, max_subset_id) for subset_id in range(max_subset_id +1)]
 
-            resources = [output_dir + output_file_name_prefix + 'lats_' + lat + '.nc' for lat in lats]
-            print('All latitudes are read from files with the respective latitude in a similar fashion to: ' + resources[0])
-            nc = xr.open_mfdataset(resources, concat_dim='latitude')
-else:
-    nc = xr.open_dataset(output_file_name)
+print('All data for the years {} to {} is read from subset_files from 0 to {}',format(start_year, end_year, max_subset_id)
+nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
 
-#* change to xarray!
+
 lons = nc['longitude'].values
 lats = nc['latitude'].values
 print(lons)
@@ -72,7 +72,7 @@ height_range_ceilings = list(nc['height_range_ceiling'].values)
 fixed_heights = list(nc['fixed_height'].values)
 integration_range_ids = list(nc['integration_range_id'].values)
 p_integral_mean = nc['p_integral_mean'].values
-hours = nc['time'].values  # Hours since 1900-01-01 00:00:00, see: print(nc.variables['time']).
+hours = nc['time'].values  # Hours since 1900-01-01 00:00:00, see: print(nc['time'].values).
 print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(hours[-1]))
 
 
