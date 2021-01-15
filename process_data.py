@@ -1,11 +1,14 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-"""Process wind data for adjacent years and save processed data to a NetCDF file. Settings, such as target file name,
+"""Process wind data for adjacent years and save processed data to a NetCDF file per subset. Settings, such as target file name,
 are imported from config.py.
 
 Example::
 
-    $ python process_data.py
+    $ python process_data.py                  : process all latitudes (all subsets)
+    $ python process_data.py -s subsetID      : process individual subset with ID subsetID
+    $ python process_data.py -s ID1 -e ID2    : process range of subsets starting at subset ID1 until ID2 (inclusively)
+    $ python process_data.py -h               : display this help
 
 """
 from netCDF4 import Dataset
@@ -18,6 +21,8 @@ from os.path import join as path_join
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, read_n_lats_at_once
+
+import sys, getopt
 
 # Set the relevant heights for the different analysis types in meter.
 analyzed_heights = {
@@ -157,47 +162,98 @@ def check_for_missing_data(hours):
                                                         hour_to_date_str(hours[i+1])))
 
 
-def process_complete_grid(output_file):
+def get_subset_range_from_input(input_subset_ids, n_subsets):
+    """"Interpret the input subset IDs with the read number of subsets available to 
+        find the subset IDs to be analyzed.
+
+    Args:
+        input_subset_ids (list): Program arguments read to give a list of starting (and ending) subset
+                                 IDs to be analyzed
+        n_subsets (int): number of latitude subsets determined by latitudes in data and read_n_lats_at_once
+
+    Returns: 
+        subset_range (list): subset IDs to be analyzed 
+    """
+    if len(input_subset_ids) == 1:
+        if input_subset_ids[0] < n_subsets:
+            # Only one ID given, thus only the corresponding subset is processed
+            subset_range = range(input_subset_ids[0], input_subset_ids[0]+1)
+            print("Only one latitude subset is analyzed, with subset ID {}".format(subset_range[0]))
+
+        else:
+            raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
+                .format(input_subset_ids[0], (n_subsets-1)))
+    elif len(input_subset_ids) == 2:
+        if all(ids < n_subsets for ids in input_subset_ids):
+            # Starting and ending ID of subsets given, the inclusive range is processed  
+            subset_range = range(input_subset_ids[0], input_subset_ids[1]+1)
+            print("A range of latitude subsets is analyzed, including subset ID {} to {}".format(subset_range[0], subset_range[-1]))
+        else:
+            raise ValueError("One of the requested subset IDs ({}, {}) is higher than maximal subset ID {}."
+                .format(input_subset_ids[0], input_subset_ids[1], (n_subsets-1)))
+    else:
+        subset_range = range(n_subsets)
+        print("All {} subsets are analyzed".format(n_subsets))
+
+    return subset_range
+
+
+def process_grid_subsets(output_file, input_subset_ids):
     """"Execute analyses on the data of the complete grid and save the processed data to a netCDF file.
 
     Args:
-        output_file (str): Name of netCDF file to which the results are saved.
+        output_file (str): Name of netCDF file to which the results are saved for the respective 
+                           subset. (including format {} placeholders)
+        input_subset_ids (list): 
 
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
     check_for_missing_data(hours)
 
-    fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables = create_and_configure_output_netcdf(
-        hours, lats, lons, output_file)
-
-    res = initialize_result_arrays(lats, lons)
-
-    # Write data corresponding to the dimensions to the output file.
-    hours_out[:] = hours
-    lats_out[:] = lats
-    lons_out[:] = lons
-
-    height_range_ceilings_out[:] = analyzed_heights['ceilings']
-    fixed_heights_out[:] = analyzed_heights['fixed']
-    integration_range_ids_out[:] = integration_range_ids
-
-    # Loop over all locations to write processed data to the output file.
-    counter = 0
-    total_iters = len(lats) * len(lons)
-    start_time = timer()
 
     # Reading the data of all grid points from the NetCDF file all at once requires a lot of memory. On the other hand,
     # reading the data of all grid points one by one takes up a lot of CPU. Therefore, the dataset is analysed in
     # pieces: the subsets are read and processed consecutively.
     n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_at_once))
 
-    for i_subset in range(n_subsets):
+    # Choose subsets to be processed in this run
+    subset_range = get_subset_range_from_input(input_subset_ids, n_subsets)
+    
+    # Loop over all specified subsets to write processed data to the output file.
+    counter = 0
+    total_iters = len(lats) * len(lons)*len(subset_range)/n_subsets
+    start_time = timer()
+
+    for i_subset in subset_range:
+        # Find latitudes corresponding to the current i_subset
         i_lat0 = i_subset * read_n_lats_at_once
         if i_lat0+read_n_lats_at_once < len(lats):
             lats_subset = range(i_lat0, i_lat0 + read_n_lats_at_once)
         else:
             lats_subset = range(i_lat0, len(lats))
+        sub_lats = lats[lats_subset]
+        print("Latitude(s) analysed: {} to {}".format(sub_lats[0], sub_lats[-1]))
 
+        # Initialize output and result arrays for this subset
+        fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out,\
+              nc_out, output_variables = create_and_configure_output_netcdf(hours, sub_lats, lons, \
+              output_file.format(start_year, final_year, i_subset, n_subsets-1))
+
+        res = initialize_result_arrays(sub_lats, lons)
+
+        # Write data corresponding to the dimensions to the output file.
+        hours_out[:] = hours
+        lats_out[:] = sub_lats
+        lons_out[:] = lons
+
+        height_range_ceilings_out[:] = analyzed_heights['ceilings']
+        fixed_heights_out[:] = analyzed_heights['fixed']
+        integration_range_ids_out[:] = integration_range_ids
+
+
+
+
+        # Read data for the subset latitudes  
         v_levels_east = ds.variables['u'][:, i_highest_level:, lats_subset, :].values
         v_levels_north = ds.variables['v'][:, i_highest_level:, lats_subset, :].values
         v_levels = (v_levels_east**2 + v_levels_north**2)**.5
@@ -308,15 +364,17 @@ def process_complete_grid(output_file):
                     res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
                     res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
 
-        print('Locations analyzed: ({}/{}).'.format(counter, total_iters))
+        print('Locations analyzed: ({}/{}).'.format(counter, total_iters)) 
         time_lapsed = float(timer()-start_time)
         time_remaining = time_lapsed/counter*(total_iters-counter)
         print("Time lapsed: {:.2f} hrs, expected time remaining: {:.2f} hrs.".format(time_lapsed/3600,
                                                                                      time_remaining/3600))
 
-    write_results_to_output_netcdf(output_variables, res)
+        write_results_to_output_netcdf(output_variables, res)
 
-    nc_out.close()  # Close the output NetCDF file.
+        nc_out.close()  # Close the output NetCDF file.
+
+
     ds.close()  # Close the input NetCDF file.
 
 
@@ -498,4 +556,29 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
 if __name__ == '__main__':
     print("processing monthly ERA5 data from the years {:d} to {:d}".format(start_year, final_year))
-    process_complete_grid(output_file_name)
+
+    # Read command-line arguments
+    input_subset_ids = [] 
+    if len(sys.argv) > 1: #user input was given
+        help = """
+        python process_data.py -s subsetID      : process individual subset with ID subsetID
+        python process_data.py -s ID1 -e ID2    : process range of subsets starting at subset ID1 until ID2 (inclusively)
+        python process_data.py -h               : display this help
+        """
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], "hs:e:", ["help", "start=", "end="])
+        except getopt.GetoptError:     # User input not given correctly, display help and end
+            print(help)
+            sys.exit()
+        for opt, arg in opts:
+            if opt in ("-h", "--help"):    # Help argument called, display help and end
+                print (help)
+                sys.exit()
+            elif opt in ("-s", "--start"):     # Specific subset by index selected  
+                input_subset_ids.append(int(arg))
+            elif opt in ("-e", "--end"):     # End of subset range indicated (inclusively) 
+                input_subset_ids.append(int(arg))
+        input_subset_ids.sort()
+
+    # Start processing
+    process_grid_subsets(output_file_name, input_subset_ids)
