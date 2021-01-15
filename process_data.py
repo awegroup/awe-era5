@@ -266,13 +266,13 @@ def process_grid_subsets(output_file, input_subset_ids):
         except KeyError:
             surface_pressure = np.exp(ds.variables['lnsp'][:, lats_subset, :].values)
 
-        for row_in_v_levels, i_lat in enumerate(lats_subset):
+        for i_lat in range(len(lats_subset)):# All subsets are written out, always start at 0 for a new subset
             for i_lon in range(len(lons)):
                 counter += 1
                 level_heights, density_levels = compute_level_heights(levels,
-                                                                      surface_pressure[:, row_in_v_levels, i_lon],
-                                                                      t_levels[:, :, row_in_v_levels, i_lon],
-                                                                      q_levels[:, :, row_in_v_levels, i_lon])
+                                                                      surface_pressure[:, i_lat, i_lon],
+                                                                      t_levels[:, :, i_lat, i_lon],
+                                                                      q_levels[:, :, i_lat, i_lon])
 
                 # Determine wind at altitudes of interest by means of interpolating the raw wind data.
                 v_req_alt = np.zeros((len(hours), len(heights_of_interest)))  # result array for writing interpolated data
@@ -283,7 +283,7 @@ def process_grid_subsets(output_file, input_subset_ids):
                         raise ValueError("Requested height ({:.2f} m) is higher than height of highest model level."
                                          .format(level_heights[i_hr, 0]))
                     v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
-                                                   v_levels[i_hr, ::-1, row_in_v_levels, i_lon])
+                                                   v_levels[i_hr, ::-1, i_lat, i_lon])
                     rho_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
                                                      density_levels[i_hr, ::-1])
                 p_req_alt = calc_power(v_req_alt, rho_req_alt)
