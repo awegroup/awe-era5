@@ -65,8 +65,7 @@ nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
 
 lons = nc['longitude'].values
 lats = nc['latitude'].values
-print(lons)
-print(lats)
+
 height_range_floor = 50.
 height_range_ceilings = list(nc['height_range_ceiling'].values)
 fixed_heights = list(nc['fixed_height'].values)
@@ -449,7 +448,7 @@ def percentile_plots_ref(plot_var, i_case, plot_var_ref, i_case_ref, plot_settin
 
 def plot_figure5():
     """" Generate integrated mean power plot. """
-    column_titles = ["50 - 150m", "10 - 500m", "Ratio"]#"0 - 10km", "Ratio"]
+    column_titles = ["50 - 150m", "10 - 500m", "Ratio"]
 
     plot_item0 = {
         'data': p_integral_mean[0, :, :]*1e-6,
@@ -461,10 +460,6 @@ def plot_figure5():
     }
     plot_item1 = {
         'data': p_integral_mean[1, :, :]*1e-6,
-        #'contour_line_levels': np.linspace(0, 65, 21)[::4],
-        #'contour_fill_levels': np.linspace(0, 65, 21),
-        #'colorbar_ticks': np.linspace(0, 65, 21)[::4],
-        #'colorbar_tick_fmt': '{:.0f}',
         'contour_line_levels': np.linspace(0, 1.5, 21)[::4],
         'contour_fill_levels': np.linspace(0, 1.5, 21),
         'colorbar_ticks': np.linspace(0, 1.5, 21)[::4],
@@ -475,10 +470,6 @@ def plot_figure5():
     plot_item2 = {
         'data': plot_item1['data']/plot_item0['data'],
         'log_scale': True,
-        #'contour_line_levels': [300., 600.],
-        #'contour_fill_levels': np.logspace(np.log10(100.0), np.log10(6700.0), num=16),
-        #'colorbar_ticks': [100., 300., 1000., 3000.],
-        #'colorbar_tick_fmt': '{:.0f}',
         'contour_line_levels': [10, 17],
         'contour_fill_levels': np.logspace(np.log10(5), np.log10(20.0), num=16),
         'colorbar_ticks': [5, 10, 15, 20],
@@ -487,7 +478,6 @@ def plot_figure5():
     }
 
     plot_items = [plot_item0, plot_item1, plot_item2]
-    print(plot_item1['data']/plot_item0['data'])
 
     eval_contour_fill_levels(plot_items)
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
