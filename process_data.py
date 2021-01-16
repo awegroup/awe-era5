@@ -232,7 +232,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         else:
             lats_subset = range(i_lat0, len(lats))
         sub_lats = lats[lats_subset]
-        print("Latitude(s) analysed: {} to {}".format(sub_lats[0], sub_lats[-1]))
+        print("Subset {}, Latitude(s) analysed: {} to {}".format(i_subset, sub_lats[0], sub_lats[-1]))
 
         # Initialize output and result arrays for this subset
         fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out,\
@@ -250,8 +250,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         fixed_heights_out[:] = analyzed_heights['fixed']
         integration_range_ids_out[:] = integration_range_ids
 
-
-
+        print('    Output configured, reading subset input now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
 
         # Read data for the subset latitudes  
         v_levels_east = ds.variables['u'][:, i_highest_level:, lats_subset, :].values
@@ -266,6 +265,8 @@ def process_grid_subsets(output_file, input_subset_ids):
         except KeyError:
             surface_pressure = np.exp(ds.variables['lnsp'][:, lats_subset, :].values)
 
+        print('    Input read, performing satistical analysis now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
+
         for i_lat in range(len(lats_subset)):# All subsets are written out, always start at 0 for a new subset
             for i_lon in range(len(lons)):
                 counter += 1
@@ -273,7 +274,6 @@ def process_grid_subsets(output_file, input_subset_ids):
                                                                       surface_pressure[:, i_lat, i_lon],
                                                                       t_levels[:, :, i_lat, i_lon],
                                                                       q_levels[:, :, i_lat, i_lon])
-
                 # Determine wind at altitudes of interest by means of interpolating the raw wind data.
                 v_req_alt = np.zeros((len(hours), len(heights_of_interest)))  # result array for writing interpolated data
                 rho_req_alt = np.zeros((len(hours), len(heights_of_interest)))
