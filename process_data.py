@@ -241,7 +241,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         # Initialize output and result arrays for this subset
         fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out,\
               nc_out, output_variables = create_and_configure_output_netcdf(hours, lats_subset, lons, \
-              output_file.format(start_year, final_year, i_subset, n_subsets-1))
+              output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)}))
 
         res = initialize_result_arrays(lats_subset, lons)
 
