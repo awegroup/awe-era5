@@ -4,7 +4,9 @@
 
 Example::
 
-    $ python plot_maps.py
+    $ python plot_maps.py              : plot from files with maximal subset id of the preset value
+    $ python plot_maps.py -m max_id    : plot from files with maximal subset id of max_id
+    $ python plot_maps.py -h           : display this help
 
 """
 import xarray as xr
@@ -20,6 +22,8 @@ import warnings
 from utils import hour_to_date_str
 from config import output_file_name, start_year, final_year
 
+import sys, getopt
+import os
 
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
@@ -31,7 +35,33 @@ n_line_levels_default = 6
 color_map = cm.YlOrRd
 
 # Load the processed data from the NetCDF file.
-nc = xr.open_dataset(output_file_name)
+
+# find all subset files matching the settings in config.py - including all until max_subset_id 
+max_subset_id = 35
+#change max_subset_id if user input is given:
+if len(sys.argv) > 1: 
+    help = """
+    python plot_maps.py              : plot from files with maximal subset id of {}
+    python plot_maps.py -m max_id    : plot from files with maximal subset id of max_id
+    python plot_maps.py -h           : display this help
+    """.format(max_subset_id)
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hm:", ["help", "maxid="])
+    except getopt.GetoptError:     # User input not given correctly, display help and end
+        print(help)
+        sys.exit()
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):    # Help argument called, display help and end
+            print (help)
+            sys.exit()
+        elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
+            max_subset_id = int(arg)
+
+all_year_subset_files = [output_file_name.format(start_year, final_year, subset_id, max_subset_id) for subset_id in range(max_subset_id +1)]
+
+print('All data for the years {} to {} is read from subset_files from 0 to {}',format(start_year, end_year, max_subset_id)
+nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
+
 
 lons = nc['longitude'].values
 lats = nc['latitude'].values
