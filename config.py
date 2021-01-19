@@ -36,5 +36,5 @@ area = "65/-20/30/20"
 upper_level = 112
 
 # Processing settings.
-output_file_name = "results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
+output_file_name = "/cephfs/user/s6lathim/ERA5Data-112/results/processed_data_europe_{:d}_{:d}_subset_{}_of_{}.nc"#.format(start_year, final_year, subset_index, maximal_subset_index)
 read_n_lats_at_once = 1
