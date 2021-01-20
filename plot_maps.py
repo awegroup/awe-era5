@@ -57,9 +57,9 @@ if len(sys.argv) > 1:
         elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
             max_subset_id = int(arg)
 
-all_year_subset_files = [output_file_name.format(start_year, final_year, subset_id, max_subset_id) for subset_id in range(max_subset_id +1)]
+all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
 
-print('All data for the years {} to {} is read from subset_files from 0 to {}',format(start_year, end_year, max_subset_id)
+print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
 nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
 
 
