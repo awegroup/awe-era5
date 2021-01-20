@@ -11,7 +11,6 @@ Example::
     $ python process_data.py -h               : display this help
 
 """
-from netCDF4 import Dataset
 import xarray as xr
 import numpy as np
 from timeit import default_timer as timer
@@ -238,23 +237,10 @@ def process_grid_subsets(output_file, input_subset_ids):
         lats_subset = lats[lat_ids_subset]
         print("Subset {}, Latitude(s) analysed: {} to {}".format(i_subset, lats_subset[0], lats_subset[-1]))
 
-        # Initialize output and result arrays for this subset
-        fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out,\
-              nc_out, output_variables = create_and_configure_output_netcdf(hours, lats_subset, lons, \
-              output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)}))
-
+        # Initialize result arrays for this subset
         res = initialize_result_arrays(lats_subset, lons)
 
-        # Write data corresponding to the dimensions to the output file.
-        hours_out[:] = hours
-        lats_out[:] = lats_subset
-        lons_out[:] = lons
-
-        height_range_ceilings_out[:] = analyzed_heights['ceilings']
-        fixed_heights_out[:] = analyzed_heights['fixed']
-        integration_range_ids_out[:] = integration_range_ids
-
-        print('    Output configured, reading subset input now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
+        print('    Result array configured, reading subset input now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
 
         # Read data for the subset latitudes  
         v_levels_east = ds.variables['u'][:, i_highest_level:, lat_ids_subset, :].values
@@ -372,14 +358,18 @@ def process_grid_subsets(output_file, input_subset_ids):
                     res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat_in_subset, i_lon] = p_ranks[3]
 
         print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters)) 
+        # Flatten output, convert to xarray Dataset and write to output file
+        output_file_name = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
+        print('Writing output to file: {}'.format(output_file_name))
+        flattened_full_output = flatten_result_arrays(lats_subset, lons, hours, res)
+        nc_out = xr.Dataset.from_dict(flattened_full_output)
+
+        nc_out.to_netcdf(output_file_name)
+
         time_lapsed = float(timer()-start_time)
         time_remaining = time_lapsed/counter*(total_iters-counter)
         print("Time lapsed: {:.2f} hrs, expected time remaining: {:.2f} hrs.".format(time_lapsed/3600,
                                                                                      time_remaining/3600))
-
-        write_results_to_output_netcdf(output_variables, res)
-
-        nc_out.close()  # Close the output NetCDF file.
 
 
     ds.close()  # Close the input NetCDF file.
@@ -421,73 +411,6 @@ def create_empty_dict():
     return d
 
 
-def write_results_to_output_netcdf(output_variables, result_arrays):
-    for analysis_type in output_variables:
-        for property in output_variables[analysis_type]:
-            for stats_operation in output_variables[analysis_type][property]:
-                if stats_operation == 'mean':
-                    output_variables[analysis_type][property][stats_operation][:] = result_arrays[analysis_type][property][stats_operation]
-                else:
-                    for stats_arg in output_variables[analysis_type][property][stats_operation]:
-                        output_variables[analysis_type][property][stats_operation][stats_arg][:] = result_arrays[analysis_type][property][stats_operation][stats_arg]
-
-
-def create_and_configure_output_netcdf(hours, lats, lons, output_file):
-    # Write output to a new NetCDF file.
-    nc_out = Dataset(output_file, "w", format="NETCDF4")
-    nc_out.createDimension("time", len(hours))
-    nc_out.createDimension("latitude", len(lats))
-    nc_out.createDimension("longitude", len(lons))
-    nc_out.createDimension("height_range_ceiling", dimension_sizes['ceilings'])
-    nc_out.createDimension("fixed_height", dimension_sizes['fixed'])
-    nc_out.createDimension("integration_range_id", dimension_sizes['integration_ranges'])
-    hours_out = nc_out.createVariable("time", "i4", ("time",))
-    lats_out = nc_out.createVariable("latitude", "f4", ("latitude",))
-    lons_out = nc_out.createVariable("longitude", "f4", ("longitude",))
-    height_range_ceilings_out = nc_out.createVariable("height_range_ceiling", "f4", ("height_range_ceiling",))
-    fixed_heights_out = nc_out.createVariable("fixed_height", "f4", ("fixed_height",))
-    integration_range_ids_out = nc_out.createVariable("integration_range_id", "i4", ("integration_range_id",))
-
-    output_variables = create_empty_dict()
-
-    output_variables['fixed']['wind_speed']['mean'] = nc_out.createVariable("v_fixed_mean", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][5] = nc_out.createVariable("v_fixed_perc5", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][32] = nc_out.createVariable("v_fixed_perc32", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][50] = nc_out.createVariable("v_fixed_perc50", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][4] = nc_out.createVariable("v_fixed_rank4", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][8] = nc_out.createVariable("v_fixed_rank8", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][14] = nc_out.createVariable("v_fixed_rank14", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][25] = nc_out.createVariable("v_fixed_rank25", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['mean'] = nc_out.createVariable("p_fixed_mean", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][5] = nc_out.createVariable("p_fixed_perc5", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][32] = nc_out.createVariable("p_fixed_perc32", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][50] = nc_out.createVariable("p_fixed_perc50", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][40] = nc_out.createVariable("p_fixed_rank40", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][300] = nc_out.createVariable("p_fixed_rank300", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][1600] = nc_out.createVariable("p_fixed_rank1600", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][9000] = nc_out.createVariable("p_fixed_rank9000", "f4", ("fixed_height", "latitude", "longitude"))
-
-    output_variables['integration_ranges']['wind_power_density']['mean'] = nc_out.createVariable("p_integral_mean", "f4", ("integration_range_id", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['mean'] = nc_out.createVariable("v_ceiling_mean", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][5] = nc_out.createVariable("v_ceiling_perc5", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][32] = nc_out.createVariable("v_ceiling_perc32", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][50] = nc_out.createVariable("v_ceiling_perc50", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][4] = nc_out.createVariable("v_ceiling_rank4", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][8] = nc_out.createVariable("v_ceiling_rank8", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][14] = nc_out.createVariable("v_ceiling_rank14", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][25] = nc_out.createVariable("v_ceiling_rank25", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['mean'] = nc_out.createVariable("p_ceiling_mean", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][5] = nc_out.createVariable("p_ceiling_perc5", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][32] = nc_out.createVariable("p_ceiling_perc32", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][50] = nc_out.createVariable("p_ceiling_perc50", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][40] = nc_out.createVariable("p_ceiling_rank40", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][300] = nc_out.createVariable("p_ceiling_rank300", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][1600] = nc_out.createVariable("p_ceiling_rank1600", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][9000] = nc_out.createVariable("p_ceiling_rank9000", "f4", ("height_range_ceiling", "latitude", "longitude"))
-
-    return fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables
-
-
 def initialize_result_arrays(lats, lons):
     # Arrays for temporary saving the results during processing, after which the results are written all at once to the
     # output file.
@@ -503,6 +426,66 @@ def initialize_result_arrays(lats, lons):
                         result_arrays[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
 
     return result_arrays
+
+def flatten_result_arrays(lats, lons, hours, result_arrays):
+    """" Flatten the result array and include the required dimensions to make it convertible to 
+         an xarray Dataset
+    Args:
+        lats (list): Latitudes to be written out
+        lons (list): Longitudes to be written out
+        hours (list): Hours to be written out
+        result_arrays(dict): dictionary of result arrays to be written out
+
+    Returns:
+        flattened_result_arrays(dict): containig al output information in for convetible to xarray dataset
+    """
+
+    # Dictionaries of naming settings for the flattening process:
+    # Analysis type - dimension names
+    dimension_names = {
+        'fixed' : 'fixed_height', 
+        'ceilings' : 'height_range_ceiling',
+        'integration_ranges' : 'integration_range_id',
+    }
+    # Analysis to variable names
+    var_names = {
+          #     Properties
+          'wind_power_density' : 'p',
+          'wind_speed' : 'v',
+          #     Analysis types
+          'fixed' : 'fixed',
+          'ceilings' : 'ceiling',
+          'integration_ranges' : 'integral',
+          #     Stats operation
+          'mean' : 'mean',
+          'percentile' : 'perc',
+          'rank' : 'rank',
+    }
+
+    # Inlcude dimension/general variable information in the flattened result array
+    flattened_result_arrays = {}
+    flattened_result_arrays['latitude'] = {"dims":("latitude"), "data":lats}
+    flattened_result_arrays['longitude'] = {"dims":("longitude"), "data":lons}
+    flattened_result_arrays['time'] = {"dims":("time"), "data":hours}
+    flattened_result_arrays['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
+    flattened_result_arrays['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
+    flattened_result_arrays['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
+
+    # Flattening the result array     
+    for analysis_type in result_arrays:
+        for property in result_arrays[analysis_type]:
+            for stats_operation in result_arrays[analysis_type][property]:
+                if stats_operation == 'mean':
+                    combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' + var_names[stats_operation]
+                    flattened_result_arrays[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_arrays[analysis_type][property][stats_operation]}
+                else:
+                    for stats_arg in result_arrays[analysis_type][property][stats_operation]:
+                        combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' +  var_names[stats_operation]+str(stats_arg) 
+                        flattened_result_arrays[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_arrays[analysis_type][property][stats_operation][stats_arg]}
+
+    return flattened_result_arrays
+
+
 
 
 def eval_single_location(location_lat, location_lon, start_year, final_year):
