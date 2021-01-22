@@ -381,8 +381,8 @@ def process_grid_subsets(output_file, input_subset_ids):
         # Flatten output, convert to xarray Dataset and write to output file
         output_file_name = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
         print('Writing output to file: {}'.format(output_file_name))
-        flattened_full_output = flatten_result_dict(lats_subset, lons, hours, res)
-        nc_out = xr.Dataset.from_dict(flattened_full_output)
+        flattened_subset_output = flatten_result_dict(lats_subset, lons, hours, res)
+        nc_out = xr.Dataset.from_dict(flattened_subset_output)
 
         nc_out.to_netcdf(output_file_name)
         nc_out.close()
