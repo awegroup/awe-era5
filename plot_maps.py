@@ -35,18 +35,15 @@ n_line_levels_default = 6
 color_map = cm.YlOrRd
 
 # Load the processed data from the NetCDF file.
-
-# find all subset files matching the settings in config.py - including all until max_subset_id 
-max_subset_id = 35
-#change max_subset_id if user input is given:
-if len(sys.argv) > 1: 
-    help = """
-    python plot_maps.py              : plot from files with maximal subset id of {}
+help = """
+    python plot_maps.py -c           : plot from files from combined output file
     python plot_maps.py -m max_id    : plot from files with maximal subset id of max_id
     python plot_maps.py -h           : display this help
     """.format(max_subset_id)
+
+if len(sys.argv) > 1: 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hm:", ["help", "maxid="])
+        opts, args = getopt.getopt(sys.argv[1:], "hm:c", ["help", "maxid=", "combined"])
     except getopt.GetoptError:     # User input not given correctly, display help and end
         print(help)
         sys.exit()
@@ -56,11 +53,18 @@ if len(sys.argv) > 1:
             sys.exit()
         elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
             max_subset_id = int(arg)
-
-all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
-
-print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
-nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
+            # find all subset files matching the settings in config.py - including all until max_subset_id 
+            all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year,\
+                'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
+            print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year,\
+                final_year, max_subset_id))
+            nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
+        elif opt in ("-c", "--combined"):     # User Input to use combined file
+            file_name = output_file_name.split('subset')[0]+'all_subsets.nc').format(**{'start_year':start_year,\
+                'final_year':final_year})
+            nc = xr.open_dataset(file_name)
+else:
+    print(help)
 
 
 lons = nc['longitude'].values

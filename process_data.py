@@ -148,6 +148,26 @@ def read_raw_data(start_year, final_year):
 
     return ds, lons, lats, levels, hours, i_highest_level
 
+def merge_output_files(start_year, final_year, max_subset_id):
+    """"Merge subset-wise output files to one total output file, the arguments are given to specify
+        the matching files
+
+    Args:
+        start_year (int): First year of processing 
+        final_year (int): Final year of processing 
+        max_subset_id (int): Maximal subset id 
+
+    """
+    all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
+
+    print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
+    nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
+    nc.to_netcdf((output_file_name.split('subset')[0]+'all_subsets.nc').format(**{'start_year':start_year, 'final_year':final_year}))
+    nc.close()
+    
+    return 0
+
+
 
 def check_for_missing_data(hours):
     """"Print message if hours are missing in timestamp series.
@@ -365,6 +385,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         nc_out = xr.Dataset.from_dict(flattened_full_output)
 
         nc_out.to_netcdf(output_file_name)
+        nc_out.close()
 
         time_lapsed = float(timer()-start_time)
         time_remaining = time_lapsed/counter*(total_iters-counter)
@@ -373,6 +394,7 @@ def process_grid_subsets(output_file, input_subset_ids):
 
 
     ds.close()  # Close the input NetCDF file.
+    return (n_subsets-1)
 
 
 def create_empty_dict():
@@ -571,4 +593,7 @@ if __name__ == '__main__':
         input_subset_ids.sort()
 
     # Start processing
-    process_grid_subsets(output_file_name, input_subset_ids)
+    max_subset_id = process_grid_subsets(output_file_name, input_subset_ids)
+
+    if input_subset_ids == []: #All subsets processed at once, combine instantly
+        merge_output_files(start_year, final_year, 140)#max_subset_id)
