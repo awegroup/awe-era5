@@ -23,7 +23,7 @@ import dask
 
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
-    output_file_name, read_n_lats_at_once
+    output_file_name, read_n_lats_per_subset
 
 
 #only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
@@ -194,7 +194,7 @@ def get_subset_range_from_input(input_subset_ids, n_subsets):
     Args:
         input_subset_ids (list): Program arguments read to give a list of starting (and ending) subset
                                  IDs to be analyzed
-        n_subsets (int): number of latitude subsets determined by latitudes in data and read_n_lats_at_once
+        n_subsets (int): number of latitude subsets determined by latitudes in data and read_n_lats_per_subset
 
     Returns: 
         subset_range (list): subset IDs to be analyzed 
@@ -239,7 +239,7 @@ def process_grid_subsets(output_file, input_subset_ids):
     # Reading the data of all grid points from the NetCDF file all at once requires a lot of memory. On the other hand,
     # reading the data of all grid points one by one takes up a lot of CPU. Therefore, the dataset is analysed in
     # pieces: the subsets are read and processed consecutively.
-    n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_at_once))
+    n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_per_subset))
 
     # Choose subsets to be processed in this run
     subset_range = get_subset_range_from_input(input_subset_ids, n_subsets)
@@ -251,9 +251,9 @@ def process_grid_subsets(output_file, input_subset_ids):
 
     for i_subset in subset_range:
         # Find latitudes corresponding to the current i_subset
-        i_lat0 = i_subset * read_n_lats_at_once
-        if i_lat0+read_n_lats_at_once < len(lats):
-            lat_ids_subset = range(i_lat0, i_lat0 + read_n_lats_at_once)
+        i_lat0 = i_subset * read_n_lats_per_subset
+        if i_lat0+read_n_lats_per_subset < len(lats):
+            lat_ids_subset = range(i_lat0, i_lat0 + read_n_lats_per_subset)
         else:
             lat_ids_subset = range(i_lat0, len(lats))
         lats_subset = lats[lat_ids_subset]
