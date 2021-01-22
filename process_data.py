@@ -258,7 +258,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         print("Subset {}, Latitude(s) analysed: {} to {}".format(i_subset, lats_subset[0], lats_subset[-1]))
 
         # Initialize result arrays for this subset
-        res = initialize_result_arrays(lats_subset, lons)
+        res = initialize_result_dict(lats_subset, lons)
 
         print('    Result array configured, reading subset input now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
 
@@ -381,7 +381,7 @@ def process_grid_subsets(output_file, input_subset_ids):
         # Flatten output, convert to xarray Dataset and write to output file
         output_file_name = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
         print('Writing output to file: {}'.format(output_file_name))
-        flattened_full_output = flatten_result_arrays(lats_subset, lons, hours, res)
+        flattened_full_output = flatten_result_dict(lats_subset, lons, hours, res)
         nc_out = xr.Dataset.from_dict(flattened_full_output)
 
         nc_out.to_netcdf(output_file_name)
@@ -433,33 +433,33 @@ def create_empty_dict():
     return d
 
 
-def initialize_result_arrays(lats, lons):
+def initialize_result_dict(lats, lons):
     # Arrays for temporary saving the results during processing, after which the results are written all at once to the
     # output file.
-    result_arrays = create_empty_dict()
+    result_dict = create_empty_dict()
 
-    for analysis_type in result_arrays:
-        for property in result_arrays[analysis_type]:
-            for stats_operation in result_arrays[analysis_type][property]:
+    for analysis_type in result_dict:
+        for property in result_dict[analysis_type]:
+            for stats_operation in result_dict[analysis_type][property]:
                 if stats_operation == 'mean':
-                    result_arrays[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                    result_dict[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
                 else:
-                    for stats_arg in result_arrays[analysis_type][property][stats_operation]:
-                        result_arrays[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                    for stats_arg in result_dict[analysis_type][property][stats_operation]:
+                        result_dict[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
 
-    return result_arrays
+    return result_dict
 
-def flatten_result_arrays(lats, lons, hours, result_arrays):
+def flatten_result_dict(lats, lons, hours, result_dict):
     """" Flatten the result array and include the required dimensions to make it convertible to 
          an xarray Dataset
     Args:
         lats (list): Latitudes to be written out
         lons (list): Longitudes to be written out
         hours (list): Hours to be written out
-        result_arrays(dict): dictionary of result arrays to be written out
+        result_dict (dict): dictionary of result arrays to be written out
 
     Returns:
-        flattened_result_arrays(dict): containig al output information in for convetible to xarray dataset
+        flattened_result_dict (dict): containig al output information in for convetible to xarray dataset
     """
 
     # Dictionaries of naming settings for the flattening process:
@@ -485,27 +485,27 @@ def flatten_result_arrays(lats, lons, hours, result_arrays):
     }
 
     # Inlcude dimension/general variable information in the flattened result array
-    flattened_result_arrays = {}
-    flattened_result_arrays['latitude'] = {"dims":("latitude"), "data":lats}
-    flattened_result_arrays['longitude'] = {"dims":("longitude"), "data":lons}
-    flattened_result_arrays['time'] = {"dims":("time"), "data":hours}
-    flattened_result_arrays['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
-    flattened_result_arrays['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
-    flattened_result_arrays['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
+    flattened_result_dict = {}
+    flattened_result_dict['latitude'] = {"dims":("latitude"), "data":lats}
+    flattened_result_dict['longitude'] = {"dims":("longitude"), "data":lons}
+    flattened_result_dict['time'] = {"dims":("time"), "data":hours}
+    flattened_result_dict['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
+    flattened_result_dict['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
+    flattened_result_dict['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
 
     # Flattening the result array     
-    for analysis_type in result_arrays:
-        for property in result_arrays[analysis_type]:
-            for stats_operation in result_arrays[analysis_type][property]:
+    for analysis_type in result_dict:
+        for property in result_dict[analysis_type]:
+            for stats_operation in result_dict[analysis_type][property]:
                 if stats_operation == 'mean':
                     combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' + var_names[stats_operation]
-                    flattened_result_arrays[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_arrays[analysis_type][property][stats_operation]}
+                    flattened_result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_dict[analysis_type][property][stats_operation]}
                 else:
-                    for stats_arg in result_arrays[analysis_type][property][stats_operation]:
+                    for stats_arg in result_dict[analysis_type][property][stats_operation]:
                         combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' +  var_names[stats_operation]+str(stats_arg) 
-                        flattened_result_arrays[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_arrays[analysis_type][property][stats_operation][stats_arg]}
+                        flattened_result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_dict[analysis_type][property][stats_operation][stats_arg]}
 
-    return flattened_result_arrays
+    return flattened_result_dict
 
 
 
