@@ -23,7 +23,7 @@ import dask
 
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
-    output_file_name, read_n_lats_per_subset
+    output_file_name, output_file_name_subset, read_n_lats_per_subset
 
 
 #only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
@@ -160,11 +160,11 @@ def merge_output_files(start_year, final_year, max_subset_id):
         max_subset_id (int): Maximal subset id 
 
     """
-    all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
+    all_year_subset_files = [output_file_name_subset.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
 
     print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
     nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
-    nc.to_netcdf((output_file_name.split('subset')[0]+'all_subsets.nc').format(**{'start_year':start_year, 'final_year':final_year}))
+    nc.to_netcdf((output_file_name.format(**{'start_year':start_year, 'final_year':final_year}))
     nc.close()
     
     return 0
@@ -381,12 +381,12 @@ def process_grid_subsets(output_file, input_subset_ids):
 
         print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters)) 
         # Flatten output, convert to xarray Dataset and write to output file
-        output_file_name = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
-        print('Writing output to file: {}'.format(output_file_name))
+        output_file_name_formatted = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
+        print('Writing output to file: {}'.format(output_file_name_formatted))
         flattened_subset_output = flatten_result_dict(lats_subset, lons, hours, res)
         nc_out = xr.Dataset.from_dict(flattened_subset_output)
 
-        nc_out.to_netcdf(output_file_name)
+        nc_out.to_netcdf(output_file_name_formatted)
         nc_out.close()
 
         time_lapsed = float(timer()-start_time)
@@ -595,7 +595,7 @@ if __name__ == '__main__':
         input_subset_ids.sort()
 
     # Start processing
-    max_subset_id = process_grid_subsets(output_file_name, input_subset_ids)
+    max_subset_id = process_grid_subsets(output_file_name_subset, input_subset_ids)
 
     if len(sys.argv) == 1: #No user input given - all subsets processed at once, combine instantly
         merge_output_files(start_year, final_year, max_subset_id)

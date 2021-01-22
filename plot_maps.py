@@ -23,7 +23,7 @@ import sys, getopt
 import os
 
 from utils import hour_to_date_str
-from config import output_file_name, start_year, final_year
+from config import output_file_name, output_file_name_subset, start_year, final_year
 
 
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
@@ -55,14 +55,13 @@ if len(sys.argv) > 1:
         elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
             max_subset_id = int(arg)
             # find all subset files matching the settings in config.py - including all until max_subset_id 
-            all_year_subset_files = [output_file_name.format(**{'start_year':start_year, 'final_year':final_year,\
+            all_year_subset_files = [output_file_name_subset.format(**{'start_year':start_year, 'final_year':final_year,\
                 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
             print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year,\
                 final_year, max_subset_id))
             nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
         elif opt in ("-c", "--combined"):     # User Input to use combined file
-            file_name = output_file_name.split('subset')[0]+'all_subsets.nc').format(**{'start_year':start_year,\
-                'final_year':final_year})
+            file_name = output_file_name.format(**{'start_year':start_year, 'final_year':final_year})
             nc = xr.open_dataset(file_name)
 else:
     print(help)

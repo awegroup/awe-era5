@@ -36,5 +36,7 @@ area = "65/-20/30/20"
 upper_level = 112
 
 # Processing settings.
-output_file_name = "results/processed_data_europe_{start_year:d}_{final_year:d}_subset_{lat_subset_id:04d}_of_{max_lat_subset_id:04d}.nc"
+output_file_name = "results/processed_data_europe_{start_year:d}_{final_year:d}.nc"
+output_file_name_subset = "results/processed_data_europe_{start_year:d}_{final_year:d}_subset_{lat_subset_id:04d}_of_{max_lat_subset_id:04d}.nc"
+
 read_n_lats_per_subset = 1
