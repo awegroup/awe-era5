@@ -17,14 +17,16 @@ from timeit import default_timer as timer
 from scipy.stats import percentileofscore
 from os.path import join as path_join
 
+import sys, getopt
+
+import dask 
+
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, read_n_lats_at_once
 
-import sys, getopt
 
 #only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
-import dask 
 dask.config.set(scheduler='synchronous')
 
 # Set the relevant heights for the different analysis types in meter.
@@ -277,7 +279,7 @@ def process_grid_subsets(output_file, input_subset_ids):
 
         print('    Input read, performing satistical analysis now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
 
-        for i_lat_in_subset in range(len(lat_ids_subset)):# All subsets are written out, always start at 0 for a new subset
+        for i_lat_in_subset in range(len(lat_ids_subset)):# Individual files saved for each subset, always start at idx 0
             for i_lon in range(len(lons)):
                 if (i_lon % 20) == 0:# Give processing info every 20 longitudes 
                     print('        {} of {} longitudes analyzed, satistical analysis of longitude {}, time lapsed: {:.2f} hrs'\
@@ -567,7 +569,7 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
 
 if __name__ == '__main__':
-    print("processing monthly ERA5 data from the years {:d} to {:d}".format(start_year, final_year))
+    print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
 
     # Read command-line arguments
     input_subset_ids = [] 
@@ -595,5 +597,5 @@ if __name__ == '__main__':
     # Start processing
     max_subset_id = process_grid_subsets(output_file_name, input_subset_ids)
 
-    if input_subset_ids == []: #All subsets processed at once, combine instantly
-        merge_output_files(start_year, final_year, 140)#max_subset_id)
+    if len(sys.argv) == 1: #No user input given - all subsets processed at once, combine instantly
+        merge_output_files(start_year, final_year, max_subset_id)

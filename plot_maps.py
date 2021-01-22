@@ -19,11 +19,12 @@ from matplotlib.cbook import MatplotlibDeprecationWarning
 from mpl_toolkits.basemap import Basemap
 import warnings
 
+import sys, getopt
+import os
+
 from utils import hour_to_date_str
 from config import output_file_name, start_year, final_year
 
-import sys, getopt
-import os
 
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
