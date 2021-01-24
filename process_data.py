@@ -164,7 +164,7 @@ def merge_output_files(start_year, final_year, max_subset_id):
 
     print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
     nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
-    nc.to_netcdf((output_file_name.format(**{'start_year':start_year, 'final_year':final_year}))
+    nc.to_netcdf(output_file_name.format(**{'start_year':start_year, 'final_year':final_year}))
     
     return 0
 
