@@ -427,29 +427,30 @@ def plot_figure5():
     """" Generate integrated mean power plot. """
     column_titles = ["50 - 150m", "10 - 500m", "Ratio"]
 
+    linspace0 = np.linspace(0, .31, 21)
     plot_item0 = {
         'data': p_integral_mean[0, :, :]*1e-6,
-        'contour_line_levels': np.linspace(0, .31, 21)[::4],
-        'contour_fill_levels': np.linspace(0, .31, 21),
-        'colorbar_ticks': np.linspace(0, .31, 21)[::4],
+        'contour_line_levels': linspace0[::4],
+        'contour_fill_levels': linspace0,
+        'colorbar_ticks': linspace0[::4],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': '[$MWm/m^2$]',
     }
+    linspace1 = np.linspace(0, 1.5, 21)
     plot_item1 = {
         'data': p_integral_mean[1, :, :]*1e-6,
-        'contour_line_levels': np.linspace(0, 1.5, 21)[::4],
-        'contour_fill_levels': np.linspace(0, 1.5, 21),
-        'colorbar_ticks': np.linspace(0, 1.5, 21)[::4],
+        'contour_line_levels': linspace1[::4],
+        'contour_fill_levels': linspace1,
+        'colorbar_ticks': linspace1[::4],
 	'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': '[$MWm/m^2$]',
     }
-
+    logspace2 = np.logspace(np.log10(4), np.log10(21.0), num=17)
     plot_item2 = {
         'data': plot_item1['data']/plot_item0['data'],
-        'log_scale': True,
-        'contour_line_levels': [10, 17],
-        'contour_fill_levels': np.logspace(np.log10(5), np.log10(20.0), num=16),
-        'colorbar_ticks': [5, 10, 15, 20],
+        'contour_line_levels': [10, 15],
+        'contour_fill_levels': logspace2,
+        'colorbar_ticks': logspace2[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Increase factor [-]',
     }
@@ -487,30 +488,33 @@ def plot_figure4():
     fixed_height_ref = 100.
     fixed_height_id = list(fixed_heights).index(fixed_height_ref)
 
+    linspace0 = np.linspace(0, .03, 21)
     plot_item0 = {
         'data': nc["p_fixed_perc5"].values[fixed_height_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, .03, 21),
-        'contour_line_levels': sorted([.003]+list(np.linspace(0, .03, 21)[::5])),
+        'contour_fill_levels': linspace0,
+        'contour_line_levels': sorted([.003]+list(linspace0[::5])),
         'contour_line_label_fmt': '%.3f',
-        'colorbar_ticks': np.linspace(0, .03, 21)[::5],
+        'colorbar_ticks': linspace0[::5],
         'colorbar_tick_fmt': '{:.3f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
+    linspace1 = np.linspace(0, .45, 21)
     plot_item1 = {
         'data': nc["p_fixed_perc32"].values[fixed_height_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, .45, 21),
-        'contour_line_levels': sorted([.04]+list(np.linspace(0, .45, 21)[::4])),
+        'contour_fill_levels': linspace1,
+        'contour_line_levels': sorted([.04]+list(linspace1[::4])),
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, .45, 21)[::4],
+        'colorbar_ticks': linspace1[::4],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
+    linspace2 = np.linspace(0, 1, 21)
     plot_item2 = {
         'data': nc["p_fixed_perc50"].values[fixed_height_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, 1, 21),
-        'contour_line_levels': sorted([.1]+list(np.linspace(0, 1, 21)[::4])),
+        'contour_fill_levels': linspace2,
+        'contour_line_levels': sorted([.1]+list(linspace2[::4])),
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, 1, 21)[::4],
+        'colorbar_ticks': linspace2[::4],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
@@ -523,26 +527,28 @@ def plot_figure4():
 
 def plot_figure8():
     """" Generate baseline comparison wind speed plot. """
+    linspace_absolute = np.arange(0, 15.1, 1)
     plot_settings_absolute_row = {
         "color_label": 'Wind speed [m/s]',
         "plot_handling": {
-            "contour_fill_levels": np.arange(0, 15.1, 1),
-            "colorbar_ticks": np.arange(0, 15.1, 2),
+            "contour_fill_levels": linspace_absolute,
+            "colorbar_ticks": linspace_absolute[::2],
             "contour_line_levels": [
-                np.arange(0, 15.1, 1),
+                linspace_absolute,
                 [5., 7., 9., 10.],
                 [7., 9., 11., 13.],
             ],
             "colorbar_tick_fmt": "{:.0f}",
         },
     }
+    linspace_relative = np.linspace(1., 2.2, 21)
     plot_settings_relative_row = {
-        "contour_fill_levels": np.linspace(1., 1.7, 21),
-        "colorbar_ticks": np.linspace(1., 1.7, 21)[::4],
+        "contour_fill_levels": linspace_relative,
+        "colorbar_ticks": linspace_relative[::4],
         "contour_line_levels": [
-            [1.1, 1.3, 1.5],
-            [1.1, 1.3, 1.5],
-            [1.1, 1.3, 1.5],
+            [1.1, 1.4, 1.7],
+            [1.1, 1.4, 1.7],
+            [1.1, 1.4, 1.7],
         ],
         'extend': 'max',
     }
@@ -558,30 +564,33 @@ def plot_figure9_upper():
     height_ceiling = 500.
     height_ceiling_id = list(height_range_ceilings).index(height_ceiling)
 
+    linspace0 = np.linspace(0, .04, 21)
     plot_item0 = {
         'data': nc["p_ceiling_perc5"].values[height_ceiling_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, .04, 21),
-        'contour_line_levels': np.linspace(0, .04, 21)[::5],
+        'contour_fill_levels': linspace0,
+        'contour_line_levels': linspace0[::5],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, .04, 21)[::5],
+        'colorbar_ticks': linspace0[::5],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
+    linspace1 = np.linspace(0, .6, 21)
     plot_item1 = {
         'data': nc["p_ceiling_perc32"].values[height_ceiling_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, .6, 21),
-        'contour_line_levels': np.linspace(0, .6, 21)[::4],
+        'contour_fill_levels': linspace1,
+        'contour_line_levels': linspace1[::4],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, .6, 21)[::4],
+        'colorbar_ticks': linspace1[::4],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
+    linspace2 = np.linspace(0, 1.3, 21)
     plot_item2 = {
         'data': nc["p_ceiling_perc50"].values[height_ceiling_id, :, :]*1e-3,
-        'contour_fill_levels': np.linspace(0, 1.3, 21),
-        'contour_line_levels': np.linspace(0, 1.3, 21)[::4],
+        'contour_fill_levels': linspace2,
+        'contour_line_levels': linspace2[::4],
         'contour_line_label_fmt': '%.2f',
-        'colorbar_ticks': np.linspace(0, 1.3, 21)[::4],
+        'colorbar_ticks': linspace2[::4],
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': 'Power density [$kW/m^2$]',
     }
@@ -602,35 +611,38 @@ def plot_figure9_lower():
     fixed_height_ref = 100.
     fixed_height_id = list(fixed_heights).index(fixed_height_ref)
 
+    linspace0 = np.linspace(1, 6., 21)
     plot_item0 = {
         'data': nc["p_ceiling_perc5"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc5"].values[fixed_height_id, :, :],
-        'contour_fill_levels': np.linspace(1, 6., 21),
+        'contour_fill_levels': linspace0,
         'contour_line_levels': np.arange(2., 5., 1.),
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(1, 6., 21)[::4],
+        'colorbar_ticks': linspace0[::4],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
     }
+    linspace1 = np.linspace(1, 12.0, 21)
     plot_item1 = {
         'data': nc["p_ceiling_perc32"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc32"].values[fixed_height_id, :, :],
-        'contour_fill_levels': np.linspace(1, 3.5, 21),
-        'contour_line_levels': np.linspace(1, 3.5, 21)[::4],
+        'contour_fill_levels': linspace1,
+        'contour_line_levels': linspace1[::4],
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(1, 3.5, 21)[::4],
+        'colorbar_ticks': linspace1[::4],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
     }
+    linspace2 = np.linspace(1, 12.5, 21)
     plot_item2 = {
         'data': nc["p_ceiling_perc50"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc50"].values[fixed_height_id, :, :],
-        'contour_fill_levels': np.linspace(1, 3.5, 21),
-        'contour_line_levels': np.linspace(1, 3.5, 21)[::4],
+        'contour_fill_levels': linspace2,
+        'contour_line_levels': linspace2[::4],
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(1, 3.5, 21)[::4],
+        'colorbar_ticks': linspace2[::4],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
@@ -647,31 +659,34 @@ def plot_figure10():
     height_ceiling = 500.
     height_ceiling_id = list(height_range_ceilings).index(height_ceiling)
 
+    linspace00 = np.linspace(50, 100, 21)
     plot_item00 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :],
-        'contour_fill_levels': np.linspace(50, 100, 21),
+        'contour_fill_levels': linspace00,
         'contour_line_levels': [70., 80., 90., 95.],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(50, 100, 21)[::4],
+        'colorbar_ticks': linspace00[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
+    linspace01 = np.linspace(0, 100, 21)
     plot_item01 = {
         'data': 100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :],
-        'contour_fill_levels': np.linspace(0, 80, 21),
-        'contour_line_levels': np.linspace(0, 80, 21)[::4][2:],
+        'contour_fill_levels': linspace01,
+        'contour_line_levels': linspace01[::4][2:],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(0, 80, 21)[::4],
+        'colorbar_ticks': linspace01[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
     }
+    linspace02 = np.linspace(0, 70, 21)
     plot_item02 = {
         'data': 100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :],
-        'contour_fill_levels': np.linspace(0, 45, 21),
-        'contour_line_levels': np.linspace(0, 45, 21)[::4][2:],
+        'contour_fill_levels': linspace02,
+        'contour_line_levels': linspace02[::4][2:],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(0, 45, 21)[::4],
+        'colorbar_ticks': linspace02[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
     }
@@ -682,33 +697,36 @@ def plot_figure10():
     eval_contour_fill_levels(plot_items)
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
+    linspace10 = np.linspace(0., 50., 21)
     plot_item10 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank40"].values[0, :, :]),
-        'contour_fill_levels': np.linspace(0., 22., 21),
-        'contour_line_levels': sorted([1.1, 2.2]+list(np.linspace(0., 22., 21)[::4][:-2])),
+        'contour_fill_levels': linspace10,
+        'contour_line_levels': sorted([1.1, 2.2]+list(linspace10[::4][:-2])),
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(0., 22., 21)[::4],
+        'colorbar_ticks': linspace10[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
+    linspace11 = np.linspace(0., 55., 21)
     plot_item11 = {
         'data': (100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank300"].values[0, :, :]),
-        'contour_fill_levels': np.linspace(0., 31., 21),
-        'contour_line_levels': np.linspace(0., 31., 21)[::4][:-2],
+        'contour_fill_levels': linspace11,
+        'contour_line_levels': linspace11[::4][:-2],
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(0., 31., 21)[::4],
+        'colorbar_ticks': linspace11[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
+    linspace12 = np.linspace(0., 45., 21)
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank1600"].values[0, :, :]),
-        'contour_fill_levels': np.linspace(0., 26., 21),
-        'contour_line_levels': np.linspace(0., 26., 21)[::4][:-2],
+        'contour_fill_levels': linspace12,
+        'contour_line_levels': linspace12[::4][:-2],
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': np.linspace(0., 26., 21)[::4],
+        'colorbar_ticks': linspace12[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
@@ -722,48 +740,52 @@ def plot_figure10():
 
 def plot_figure11():
     """" Generate 40 W/m^2 power availability plot for alternative height ceilings. """
-    height_ceilings = [200., 300., 400.]
+    height_ceilings = [300., 1000., 1000.]#*should be 1500. 
     height_ceiling_ids = [list(height_range_ceilings).index(height_ceiling) for height_ceiling in height_ceilings]
     baseline_height_ceiling = 500.
     baseline_height_ceiling_id = list(height_range_ceilings).index(baseline_height_ceiling)
+
+    linspace00 = np.linspace(50, 100, 21)
     plot_item00 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :],
-        'contour_fill_levels': np.linspace(50, 100, 21),
+        'contour_fill_levels': linspace00,
         'contour_line_levels': [70., 80., 90., 95.],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(50, 100, 21)[::4],
+        'colorbar_ticks': linspace00[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
+    linspace01 = np.linspace(70, 100, 21)
     plot_item01 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :],
-        'contour_fill_levels': np.linspace(70, 100, 21),
+        'contour_fill_levels': linspace01,
         'contour_line_levels': [70., 80., 90., 95.],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(70, 100, 21)[::4],
+        'colorbar_ticks': linspace01[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
+    linspace02 = np.linspace(80, 100, 21)
     plot_item02 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :],
-        'contour_fill_levels': np.linspace(80, 100, 21),
+        'contour_fill_levels': linspace02,
         'contour_line_levels': [70., 80., 90., 95.],
         'contour_line_label_fmt': '%.0f',
-        'colorbar_ticks': np.linspace(80, 100, 21)[::4],
+        'colorbar_ticks': linspace02[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
 
-    column_titles = ["200 m", "300 m", "400 m"]
+    column_titles = ["300 m", "1000 m", "1500 m"]
     plot_items = [plot_item00, plot_item01, plot_item02]
 
     eval_contour_fill_levels(plot_items)
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
-    linspace10 = np.linspace(0., 11., 21)
+    linspace10 = np.linspace(0., 20., 21)
     plot_item10 = {
         'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :])+
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
@@ -774,7 +796,7 @@ def plot_figure11():
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability decrease [%]',
     }
-    linspace11 = np.linspace(0., 23., 21)
+    linspace11 = np.linspace(0., 38., 21)
     plot_item11 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
@@ -785,7 +807,7 @@ def plot_figure11():
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
-    linspace12 = np.linspace(0., 38., 21)
+    linspace12 = np.linspace(0., 38., 21)#* change this for 1500.
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
