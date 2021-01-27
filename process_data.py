@@ -21,7 +21,7 @@ import sys, getopt
 
 import dask 
 
-from utils import hour_to_date_str, compute_level_heights
+from utils import hour_to_date_str, compute_level_heights, flatten_dict
 from config_Lavi import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, output_file_name_subset, read_n_lats_per_subset
 #*
@@ -126,8 +126,8 @@ def read_raw_data(start_year, final_year):
     # Construct the list of input NetCDF files
     ml_files = []
     sfc_files = []
-    for y in range(start_year, final_year+1):
-        for m in range(1, 13):
+    for y in range(start_year, start_year+1):#final_year+1):
+        for m in range(1, 2):#13):
             ml_files.append(path_join(era5_data_dir, model_level_file_name_format.format(y, m)))
             sfc_files.append(path_join(era5_data_dir, surface_file_name_format.format(y, m)))
     # Load the data from the NetCDF files.
@@ -355,7 +355,7 @@ def process_grid_subsets(output_file, input_start_subset_id, input_end_subset_id
         # Flatten output, convert to xarray Dataset and write to output file
         output_file_name_formatted = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
         print('Writing output to file: {}'.format(output_file_name_formatted))
-        flattened_subset_output = flatten_result_dict(lats_subset, lons, hours, res)
+        flattened_subset_output = get_result_dict(lats_subset, lons, hours, res)
         nc_out = xr.Dataset.from_dict(flattened_subset_output)
 
         nc_out.to_netcdf(output_file_name_formatted)
@@ -423,17 +423,18 @@ def initialize_result_dict(lats, lons):
 
     return result_dict
 
-def flatten_result_dict(lats, lons, hours, result_dict):
+
+def get_result_dict(lats, lons, hours, analysis_results):
     """" Flatten the result array and include the required dimensions to make it convertible to 
          an xarray Dataset
     Args:
         lats (list): Latitudes to be written out
         lons (list): Longitudes to be written out
         hours (list): Hours to be written out
-        result_dict (dict): dictionary of result arrays to be written out
+        analysis_results (dict): dictionary of result arrays to be written out
 
     Returns:
-        flattened_result_dict (dict): containig al output information in for convetible to xarray dataset
+        result_dict (dict): containig al output information in for convetible to xarray dataset
     """
 
     # Dictionaries of naming settings for the flattening process:
@@ -459,27 +460,26 @@ def flatten_result_dict(lats, lons, hours, result_dict):
     }
 
     # Inlcude dimension/general variable information in the flattened result array
-    flattened_result_dict = {}
-    flattened_result_dict['latitude'] = {"dims":("latitude"), "data":lats}
-    flattened_result_dict['longitude'] = {"dims":("longitude"), "data":lons}
-    flattened_result_dict['time'] = {"dims":("time"), "data":hours}
-    flattened_result_dict['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
-    flattened_result_dict['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
-    flattened_result_dict['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
+    result_dict = {}
+    result_dict['latitude'] = {"dims":("latitude"), "data":lats}
+    result_dict['longitude'] = {"dims":("longitude"), "data":lons}
+    result_dict['time'] = {"dims":("time"), "data":hours}
+    result_dict['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
+    result_dict['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
+    result_dict['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
 
-    # Flattening the result array     
-    for analysis_type in result_dict: #* do recursively 
-        for property in result_dict[analysis_type]:
-            for stats_operation in result_dict[analysis_type][property]:
-                if stats_operation == 'mean':
-                    combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' + var_names[stats_operation]
-                    flattened_result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_dict[analysis_type][property][stats_operation]}
-                else:
-                    for stats_arg in result_dict[analysis_type][property][stats_operation]:
-                        combined_var_name=var_names[property] + '_' + var_names[analysis_type] + '_' +  var_names[stats_operation]+str(stats_arg) 
-                        flattened_result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_dict[analysis_type][property][stats_operation][stats_arg]}
+    
+    # Flattening the result array
+    flattened_analysis_results = flatten_dict(analysis_results) # flatten the dict inserting '.' between keywords
+    for flattened_var_name, result_array in flattened_analysis_results.items():
+        # Interpret flatteney keyword to combined output var names
+        analysis_type, property, stats_operation = flattened_var_name.split('.')[:3]
+        output_var_names = [var_names[property], var_names[analysis_type], var_names[stats_operation]]
+        combined_var_name = '_'.join(output_var_names) + ''.join(flattened_var_name.split('.')[3:] )
+        # Fill result_dict with dimensions and data to match xr.Dataset format
+        result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_array}
 
-    return flattened_result_dict
+    return result_dict
 
 
 
@@ -546,7 +546,7 @@ if __name__ == '__main__':
     # Read command-line arguments
     input_start_subset_id = -1
     input_end_subset_id = -1
-    if len(sys.argv) > 1: #user input was given
+    if len(sys.argv) > 1: # User input was given
         help = """
         python process_data.py                  : process all latitude subsets
         python process_data.py -s subsetID      : process individual subset with ID subsetID
