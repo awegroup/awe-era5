@@ -186,14 +186,16 @@ def check_for_missing_data(hours):
                                                         hour_to_date_str(hours[i+1])))
 
 
-def process_grid_subsets(output_file, input_start_subset_id, input_end_subset_id):
+def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
     """"Execute analyses on the data of the complete grid and save the processed data to a netCDF file.
+        By default all subsets are analyzed
 
     Args:
         output_file (str): Name of netCDF file to which the results are saved for the respective 
                            subset. (including format {} placeholders)
-        input_start_subset_id (int): Starting subset id to be analyzed (-1 if none given)
-        input_end_subset_id (int): Last subset id to be analyzed (-1 if none given)
+        start_subset_id (int): Starting subset id to be analyzed
+        end_subset_id (int): Last subset id to be analyzed 
+                             (set to -1 to process all subsets after start_subset_id)
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
     check_for_missing_data(hours)
@@ -205,14 +207,14 @@ def process_grid_subsets(output_file, input_start_subset_id, input_end_subset_id
     n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_per_subset))
 
     # Define subset range to be processed in this run
-    if input_end_subset_id == -1:
-        if input_start_subset_id == -1:
-            subset_range = range(n_subsets)
-        else:
-            subset_range = range(input_start_subset_id, input_start_subset_id+1)
+    if end_subset_id == -1:
+        subset_range = range(start_subset_id, n_subsets)
     else:
-        subset_range = range(input_start_subset_id, input_end_subset_id+1)
-    
+        subset_range = range(start_subset_id, end_subset_id+1)
+    if subset_range[-1] > (n_subsets-1):
+        raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
+                .format(subset_range[-1], (n_subsets-1)))
+
     # Loop over all specified subsets to write processed data to the output file.
     counter = 0
     total_iters = len(lats) * len(lons)*len(subset_range)/n_subsets
@@ -223,9 +225,6 @@ def process_grid_subsets(output_file, input_start_subset_id, input_end_subset_id
         i_lat0 = i_subset * read_n_lats_per_subset
         if i_lat0+read_n_lats_per_subset < len(lats):
             lat_ids_subset = range(i_lat0, i_lat0 + read_n_lats_per_subset)
-        elif i_subset > (n_subsets-1):
-            raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
-                .format(i_subset, (n_subsets-1)))
         else:
             lat_ids_subset = range(i_lat0, len(lats))
         lats_subset = lats[lat_ids_subset]
@@ -544,7 +543,7 @@ if __name__ == '__main__':
     print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
 
     # Read command-line arguments
-    input_start_subset_id = -1
+    input_start_subset_id = 0
     input_end_subset_id = -1
     if len(sys.argv) > 1: # User input was given
         help = """
@@ -562,9 +561,10 @@ if __name__ == '__main__':
             if opt in ("-h", "--help"):    # Help argument called, display help and end
                 print (help)
                 sys.exit()
-            elif opt in ("-s", "--start"):     # Specific subset by index selected  
+            elif opt in ("-s", "--start"):     # Specific subset by index selected: set start and end to this id 
                 input_start_subset_id = int(arg)
-            elif opt in ("-e", "--end"):     # End of subset range indicated (inclusively) 
+                input_end_subset_id = int(arg)
+            elif opt in ("-e", "--end"):     # Modified end of subset range indicated (inclusively) 
                 input_end_subset_id = int(arg)
         if input_end_subset_id != -1 and input_end_subset_id < input_start_subset_id:
             raise ValueError("End subset id {} smaller than start id {}, check given input".format(input_end_subset_id, input_start_subset_id))
