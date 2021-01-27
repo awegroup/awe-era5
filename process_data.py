@@ -22,9 +22,9 @@ import sys, getopt
 import dask 
 
 from utils import hour_to_date_str, compute_level_heights, flatten_dict
-from config_Lavi import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
+from utils import hour_to_date_str, compute_level_heights
+from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, output_file_name_subset, read_n_lats_per_subset
-#*
 
 #only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
 dask.config.set(scheduler='synchronous')
@@ -126,8 +126,8 @@ def read_raw_data(start_year, final_year):
     # Construct the list of input NetCDF files
     ml_files = []
     sfc_files = []
-    for y in range(start_year, start_year+1):#final_year+1):
-        for m in range(1, 2):#13):
+    for y in range(start_year, final_year+1):
+        for m in range(1, 13):
             ml_files.append(path_join(era5_data_dir, model_level_file_name_format.format(y, m)))
             sfc_files.append(path_join(era5_data_dir, surface_file_name_format.format(y, m)))
     # Load the data from the NetCDF files.
@@ -472,9 +472,10 @@ def get_result_dict(lats, lons, hours, analysis_results):
     flattened_analysis_results = flatten_dict(analysis_results) # flatten the dict inserting '.' between keywords
     for flattened_var_name, result_array in flattened_analysis_results.items():
         # Interpret flatteney keyword to combined output var names
-        analysis_type, property, stats_operation = flattened_var_name.split('.')[:3]
+        split_res = flattened_var_name.split('.')
+        analysis_type, property, stats_operation = split_res[:3]
         output_var_names = [var_names[property], var_names[analysis_type], var_names[stats_operation]]
-        combined_var_name = '_'.join(output_var_names) + ''.join(flattened_var_name.split('.')[3:] )
+        combined_var_name = '_'.join(output_var_names) + ''.join(split_res[3:] )
         # Fill result_dict with dimensions and data to match xr.Dataset format
         result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_array}
 
@@ -538,14 +539,11 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
     return hours, v_req_alt, v_ceilings, optimal_heights
 
-
-if __name__ == '__main__':
-    print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
-
-    # Read command-line arguments
-    input_start_subset_id = 0
+def interpret_input_args():
+    input_start_subset_id = 0 # Standard settings to process all subsets
     input_end_subset_id = -1
-    if len(sys.argv) > 1: # User input was given
+    
+    if len(sys.argv) > 1: # User input was given, modify standard settings accordingly
         help = """
         python process_data.py                  : process all latitude subsets
         python process_data.py -s subsetID      : process individual subset with ID subsetID
@@ -561,14 +559,24 @@ if __name__ == '__main__':
             if opt in ("-h", "--help"):    # Help argument called, display help and end
                 print (help)
                 sys.exit()
-            elif opt in ("-s", "--start"):     # Specific subset by index selected: set start and end to this id 
+            elif opt in ("-s", "--start"):     # Specific subset by index selected: set start to this id 
                 input_start_subset_id = int(arg)
-                input_end_subset_id = int(arg)
             elif opt in ("-e", "--end"):     # Modified end of subset range indicated (inclusively) 
                 input_end_subset_id = int(arg)
-        if input_end_subset_id != -1 and input_end_subset_id < input_start_subset_id:
-            raise ValueError("End subset id {} smaller than start id {}, check given input".format(input_end_subset_id, input_start_subset_id))
-            sys.exit() 
+        if input_end_subset_id != -1:
+            if input_end_subset_id < input_start_subset_id:
+                raise ValueError("End subset id {} smaller than start id {}, check given input".format(
+                              input_end_subset_id, input_start_subset_id))
+        else: # End ID not specified - process single subset with ID input_start_subset_id
+            input_end_subset_id = input_start_subset_id
+            
+    return input_start_subset_id, input_end_subset_id
+
+if __name__ == '__main__':
+    print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
+
+    # Read command-line arguments
+    input_start_subset_id, input_end_subset_id = interpret_input_args()
 
     # Start processing
     max_subset_id = process_grid_subsets(output_file_name_subset, input_start_subset_id, input_end_subset_id)
