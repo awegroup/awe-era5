@@ -566,8 +566,8 @@ if __name__ == '__main__':
                 input_start_subset_id = int(arg)
             elif opt in ("-e", "--end"):     # End of subset range indicated (inclusively) 
                 input_end_subset_id = int(arg)
-        if input_end_subset_id < input_start_subset_id:
-            raise ValueError("End subset id {} larger than start id {}, check given input".format(input_end_subset_id, input_start_subset_id))
+        if input_end_subset_id != -1 and input_end_subset_id < input_start_subset_id:
+            raise ValueError("End subset id {} smaller than start id {}, check given input".format(input_end_subset_id, input_start_subset_id))
             sys.exit() 
 
     # Start processing
