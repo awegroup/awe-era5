@@ -22,9 +22,9 @@ import sys, getopt
 import dask 
 
 from utils import hour_to_date_str, compute_level_heights
-from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
+from config_Lavi import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, output_file_name_subset, read_n_lats_per_subset
-
+#*
 
 #only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
 dask.config.set(scheduler='synchronous')
@@ -32,7 +32,7 @@ dask.config.set(scheduler='synchronous')
 # Set the relevant heights for the different analysis types in meter.
 analyzed_heights = {
     'floor': 50.,
-    'ceilings': [200., 300., 400., 500., 1000.],
+    'ceilings': [200., 300., 400., 500., 1000., 1250.],
     'fixed': [100.],
     'integration_ranges': [(50., 150.), (10., 500.)],
 }
@@ -186,50 +186,14 @@ def check_for_missing_data(hours):
                                                         hour_to_date_str(hours[i+1])))
 
 
-def get_subset_range_from_input(input_subset_ids, n_subsets):
-    """"Interpret the input subset IDs with the read number of subsets available to 
-        find the subset IDs to be analyzed.
-
-    Args:
-        input_subset_ids (list): Program arguments read to give a list of starting (and ending) subset
-                                 IDs to be analyzed
-        n_subsets (int): number of latitude subsets determined by latitudes in data and read_n_lats_per_subset
-
-    Returns: 
-        subset_range (list): subset IDs to be analyzed 
-    """
-    if len(input_subset_ids) == 1:
-        if input_subset_ids[0] < n_subsets:
-            # Only one ID given, thus only the corresponding subset is processed
-            subset_range = range(input_subset_ids[0], input_subset_ids[0]+1)
-            print("Only one latitude subset is analyzed, with subset ID {}".format(subset_range[0]))
-
-        else:
-            raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
-                .format(input_subset_ids[0], (n_subsets-1)))
-    elif len(input_subset_ids) == 2:
-        if all(ids < n_subsets for ids in input_subset_ids):
-            # Starting and ending ID of subsets given, the inclusive range is processed  
-            subset_range = range(input_subset_ids[0], input_subset_ids[1]+1)
-            print("A range of latitude subsets is analyzed, including subset ID {} to {}".format(subset_range[0], subset_range[-1]))
-        else:
-            raise ValueError("One of the requested subset IDs ({}, {}) is higher than maximal subset ID {}."
-                .format(input_subset_ids[0], input_subset_ids[1], (n_subsets-1)))
-    else:
-        subset_range = range(n_subsets)
-        print("All {} subsets are analyzed".format(n_subsets))
-
-    return subset_range
-
-
-def process_grid_subsets(output_file, input_subset_ids):
+def process_grid_subsets(output_file, input_start_subset_id, input_end_subset_id):
     """"Execute analyses on the data of the complete grid and save the processed data to a netCDF file.
 
     Args:
         output_file (str): Name of netCDF file to which the results are saved for the respective 
                            subset. (including format {} placeholders)
-        input_subset_ids (list): 
-
+        input_start_subset_id (int): Starting subset id to be analyzed (-1 if none given)
+        input_end_subset_id (int): Last subset id to be analyzed (-1 if none given)
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
     check_for_missing_data(hours)
@@ -240,8 +204,14 @@ def process_grid_subsets(output_file, input_subset_ids):
     # pieces: the subsets are read and processed consecutively.
     n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_per_subset))
 
-    # Choose subsets to be processed in this run
-    subset_range = get_subset_range_from_input(input_subset_ids, n_subsets)
+    # Define subset range to be processed in this run
+    if input_end_subset_id == -1:
+        if input_start_subset_id == -1:
+            subset_range = range(n_subsets)
+        else:
+            subset_range = range(input_start_subset_id, input_start_subset_id+1)
+    else:
+        subset_range = range(input_start_subset_id, input_end_subset_id+1)
     
     # Loop over all specified subsets to write processed data to the output file.
     counter = 0
@@ -253,6 +223,9 @@ def process_grid_subsets(output_file, input_subset_ids):
         i_lat0 = i_subset * read_n_lats_per_subset
         if i_lat0+read_n_lats_per_subset < len(lats):
             lat_ids_subset = range(i_lat0, i_lat0 + read_n_lats_per_subset)
+        elif i_subset > (n_subsets-1):
+            raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
+                .format(i_subset, (n_subsets-1)))
         else:
             lat_ids_subset = range(i_lat0, len(lats))
         lats_subset = lats[lat_ids_subset]
@@ -495,7 +468,7 @@ def flatten_result_dict(lats, lons, hours, result_dict):
     flattened_result_dict['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
 
     # Flattening the result array     
-    for analysis_type in result_dict:
+    for analysis_type in result_dict: #* do recursively 
         for property in result_dict[analysis_type]:
             for stats_operation in result_dict[analysis_type][property]:
                 if stats_operation == 'mean':
@@ -571,9 +544,11 @@ if __name__ == '__main__':
     print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
 
     # Read command-line arguments
-    input_subset_ids = [] 
+    input_start_subset_id = -1
+    input_end_subset_id = -1
     if len(sys.argv) > 1: #user input was given
         help = """
+        python process_data.py                  : process all latitude subsets
         python process_data.py -s subsetID      : process individual subset with ID subsetID
         python process_data.py -s ID1 -e ID2    : process range of subsets starting at subset ID1 until ID2 (inclusively)
         python process_data.py -h               : display this help
@@ -588,13 +563,15 @@ if __name__ == '__main__':
                 print (help)
                 sys.exit()
             elif opt in ("-s", "--start"):     # Specific subset by index selected  
-                input_subset_ids.append(int(arg))
+                input_start_subset_id = int(arg)
             elif opt in ("-e", "--end"):     # End of subset range indicated (inclusively) 
-                input_subset_ids.append(int(arg))
-        input_subset_ids.sort()
+                input_end_subset_id = int(arg)
+        if input_end_subset_id < input_start_subset_id:
+            raise ValueError("End subset id {} larger than start id {}, check given input".format(input_end_subset_id, input_start_subset_id))
+            sys.exit() 
 
     # Start processing
-    max_subset_id = process_grid_subsets(output_file_name_subset, input_subset_ids)
+    max_subset_id = process_grid_subsets(output_file_name_subset, input_start_subset_id, input_end_subset_id)
 
     if len(sys.argv) == 1: #No user input given - all subsets processed at once, combine instantly
         merge_output_files(start_year, final_year, max_subset_id)
