@@ -540,10 +540,9 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
     return hours, v_req_alt, v_ceilings, optimal_heights
 
 def interpret_input_args():
-    input_start_subset_id = 0 # Standard settings to process all subsets
-    input_end_subset_id = -1
     
-    if len(sys.argv) > 1: # User input was given, modify standard settings accordingly
+    if len(sys.argv) > 1: # User input was given
+        end_id_set = False
         help = """
         python process_data.py                  : process all latitude subsets
         python process_data.py -s subsetID      : process individual subset with ID subsetID
@@ -563,12 +562,15 @@ def interpret_input_args():
                 input_start_subset_id = int(arg)
             elif opt in ("-e", "--end"):     # Modified end of subset range indicated (inclusively) 
                 input_end_subset_id = int(arg)
-        if input_end_subset_id != -1:
-            if input_end_subset_id < input_start_subset_id:
+                end_id_set = True
+        if end_id_set and not input_end_subset_id == -1 and input_end_subset_id < input_start_subset_id:
                 raise ValueError("End subset id {} smaller than start id {}, check given input".format(
                               input_end_subset_id, input_start_subset_id))
-        else: # End ID not specified - process single subset with ID input_start_subset_id
+        elif not end_id_set: # End ID not specified - process single subset with ID input_start_subset_id
             input_end_subset_id = input_start_subset_id
+    else:
+        input_start_subset_id = 0 # Standard settings to process all subsets
+        input_end_subset_id = -1
             
     return input_start_subset_id, input_end_subset_id
 
