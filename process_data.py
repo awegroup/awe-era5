@@ -1,28 +1,38 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-"""Process wind data for adjacent years and save processed data to a NetCDF file. Settings, such as target file name,
+"""Process wind data for adjacent years and save processed data to a NetCDF file per subset. Settings, such as target file name,
 are imported from config.py.
 
 Example::
 
-    $ python process_data.py
+    $ python process_data.py                  : process all latitudes (all subsets)
+    $ python process_data.py -s subsetID      : process individual subset with ID subsetID
+    $ python process_data.py -s ID1 -e ID2    : process range of subsets starting at subset ID1 until ID2 (inclusively)
+    $ python process_data.py -h               : display this help
 
 """
-from netCDF4 import Dataset
 import xarray as xr
 import numpy as np
 from timeit import default_timer as timer
 from scipy.stats import percentileofscore
 from os.path import join as path_join
 
+import sys, getopt
+
+import dask 
+
+from utils import hour_to_date_str, compute_level_heights, flatten_dict
 from utils import hour_to_date_str, compute_level_heights
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
-    output_file_name, read_n_lats_at_once
+    output_file_name, output_file_name_subset, read_n_lats_per_subset
 
-# Set the relevant heights for the different analysis types.
+#only as many threads as requested CPUs | only one to be requested, more threads don't seem to be used
+dask.config.set(scheduler='synchronous')
+
+# Set the relevant heights for the different analysis types in meter.
 analyzed_heights = {
     'floor': 50.,
-    'ceilings': [200., 300., 400., 500.],
+    'ceilings': [200., 300., 400., 500., 1000., 1250.],
     'fixed': [100.],
     'integration_ranges': [(50., 150.), (10., 500.)],
 }
@@ -120,7 +130,6 @@ def read_raw_data(start_year, final_year):
         for m in range(1, 13):
             ml_files.append(path_join(era5_data_dir, model_level_file_name_format.format(y, m)))
             sfc_files.append(path_join(era5_data_dir, surface_file_name_format.format(y, m)))
-
     # Load the data from the NetCDF files.
     ds = xr.open_mfdataset(ml_files+sfc_files, decode_times=False)
 
@@ -141,6 +150,25 @@ def read_raw_data(start_year, final_year):
 
     return ds, lons, lats, levels, hours, i_highest_level
 
+def merge_output_files(start_year, final_year, max_subset_id):
+    """"Merge subset-wise output files to one total output file, the arguments are given to specify
+        the matching files
+
+    Args:
+        start_year (int): First year of processing 
+        final_year (int): Final year of processing 
+        max_subset_id (int): Maximal subset id 
+
+    """
+    all_year_subset_files = [output_file_name_subset.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
+
+    print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year, max_subset_id))
+    nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
+    nc.to_netcdf(output_file_name.format(**{'start_year':start_year, 'final_year':final_year}))
+    
+    return 0
+
+
 
 def check_for_missing_data(hours):
     """"Print message if hours are missing in timestamp series.
@@ -158,67 +186,80 @@ def check_for_missing_data(hours):
                                                         hour_to_date_str(hours[i+1])))
 
 
-def process_complete_grid(output_file):
+def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
     """"Execute analyses on the data of the complete grid and save the processed data to a netCDF file.
+        By default all subsets are analyzed
 
     Args:
-        output_file (str): Name of netCDF file to which the results are saved.
-
+        output_file (str): Name of netCDF file to which the results are saved for the respective 
+                           subset. (including format {} placeholders)
+        start_subset_id (int): Starting subset id to be analyzed
+        end_subset_id (int): Last subset id to be analyzed 
+                             (set to -1 to process all subsets after start_subset_id)
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
     check_for_missing_data(hours)
 
-    fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables = create_and_configure_output_netcdf(
-        hours, lats, lons, output_file)
-
-    res = initialize_result_arrays(lats, lons)
-
-    # Write data corresponding to the dimensions to the output file.
-    hours_out[:] = hours
-    lats_out[:] = lats
-    lons_out[:] = lons
-
-    height_range_ceilings_out[:] = analyzed_heights['ceilings']
-    fixed_heights_out[:] = analyzed_heights['fixed']
-    integration_range_ids_out[:] = integration_range_ids
-
-    # Loop over all locations to write processed data to the output file.
-    counter = 0
-    total_iters = len(lats) * len(lons)
-    start_time = timer()
 
     # Reading the data of all grid points from the NetCDF file all at once requires a lot of memory. On the other hand,
     # reading the data of all grid points one by one takes up a lot of CPU. Therefore, the dataset is analysed in
     # pieces: the subsets are read and processed consecutively.
-    n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_at_once))
+    n_subsets = int(np.ceil(float(len(lats)) / read_n_lats_per_subset))
 
-    for i_subset in range(n_subsets):
-        i_lat0 = i_subset * read_n_lats_at_once
-        if i_lat0+read_n_lats_at_once < len(lats):
-            lats_subset = range(i_lat0, i_lat0 + read_n_lats_at_once)
+    # Define subset range to be processed in this run
+    if end_subset_id == -1:
+        subset_range = range(start_subset_id, n_subsets)
+    else:
+        subset_range = range(start_subset_id, end_subset_id+1)
+    if subset_range[-1] > (n_subsets-1):
+        raise ValueError("Requested subset ID ({}) is higher than maximal subset ID {}."
+                .format(subset_range[-1], (n_subsets-1)))
+
+    # Loop over all specified subsets to write processed data to the output file.
+    counter = 0
+    total_iters = len(lats) * len(lons)*len(subset_range)/n_subsets
+    start_time = timer()
+
+    for i_subset in subset_range:
+        # Find latitudes corresponding to the current i_subset
+        i_lat0 = i_subset * read_n_lats_per_subset
+        if i_lat0+read_n_lats_per_subset < len(lats):
+            lat_ids_subset = range(i_lat0, i_lat0 + read_n_lats_per_subset)
         else:
-            lats_subset = range(i_lat0, len(lats))
+            lat_ids_subset = range(i_lat0, len(lats))
+        lats_subset = lats[lat_ids_subset]
+        print("Subset {}, Latitude(s) analysed: {} to {}".format(i_subset, lats_subset[0], lats_subset[-1]))
 
-        v_levels_east = ds.variables['u'][:, i_highest_level:, lats_subset, :].values
-        v_levels_north = ds.variables['v'][:, i_highest_level:, lats_subset, :].values
+        # Initialize result arrays for this subset
+        res = initialize_result_dict(lats_subset, lons)
+
+        print('    Result array configured, reading subset input now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
+
+        # Read data for the subset latitudes  
+        v_levels_east = ds.variables['u'][:, i_highest_level:, lat_ids_subset, :].values
+        v_levels_north = ds.variables['v'][:, i_highest_level:, lat_ids_subset, :].values
         v_levels = (v_levels_east**2 + v_levels_north**2)**.5
 
-        t_levels = ds.variables['t'][:, i_highest_level:, lats_subset, :].values
-        q_levels = ds.variables['q'][:, i_highest_level:, lats_subset, :].values
+        t_levels = ds.variables['t'][:, i_highest_level:, lat_ids_subset, :].values
+        q_levels = ds.variables['q'][:, i_highest_level:, lat_ids_subset, :].values
 
         try:
-            surface_pressure = ds.variables['sp'][:, lats_subset, :].values
+            surface_pressure = ds.variables['sp'][:, lat_ids_subset, :].values
         except KeyError:
-            surface_pressure = np.exp(ds.variables['lnsp'][:, lats_subset, :].values)
+            surface_pressure = np.exp(ds.variables['lnsp'][:, lat_ids_subset, :].values)
 
-        for row_in_v_levels, i_lat in enumerate(lats_subset):
+        print('    Input read, performing satistical analysis now, time lapsed: {:.2f} hrs'.format(float(timer()-start_time)/3600))
+
+        for i_lat_in_subset in range(len(lat_ids_subset)):# Individual files saved for each subset, always start at idx 0
             for i_lon in range(len(lons)):
+                if (i_lon % 20) == 0:# Give processing info every 20 longitudes 
+                    print('        {} of {} longitudes analyzed, satistical analysis of longitude {}, time lapsed: {:.2f} hrs'\
+                         .format(i_lon, len(lons), lons[i_lon], float(timer()-start_time)/3600))
                 counter += 1
                 level_heights, density_levels = compute_level_heights(levels,
-                                                                      surface_pressure[:, row_in_v_levels, i_lon],
-                                                                      t_levels[:, :, row_in_v_levels, i_lon],
-                                                                      q_levels[:, :, row_in_v_levels, i_lon])
-
+                                                                      surface_pressure[:, i_lat_in_subset, i_lon],
+                                                                      t_levels[:, :, i_lat_in_subset, i_lon],
+                                                                      q_levels[:, :, i_lat_in_subset, i_lon])
                 # Determine wind at altitudes of interest by means of interpolating the raw wind data.
                 v_req_alt = np.zeros((len(hours), len(heights_of_interest)))  # result array for writing interpolated data
                 rho_req_alt = np.zeros((len(hours), len(heights_of_interest)))
@@ -228,7 +269,7 @@ def process_complete_grid(output_file):
                         raise ValueError("Requested height ({:.2f} m) is higher than height of highest model level."
                                          .format(level_heights[i_hr, 0]))
                     v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
-                                                   v_levels[i_hr, ::-1, row_in_v_levels, i_lon])
+                                                   v_levels[i_hr, ::-1, i_lat_in_subset, i_lon])
                     rho_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
                                                      density_levels[i_hr, ::-1])
                 p_req_alt = calc_power(v_req_alt, rho_req_alt)
@@ -236,30 +277,30 @@ def process_complete_grid(output_file):
                 # Determine wind statistics at fixed heights of interest.
                 for i_out, fixed_height_id in enumerate(analyzed_heights_ids['fixed']):
                     v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_req_alt[:, fixed_height_id])
-                    res['fixed']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
-                    res['fixed']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
-                    res['fixed']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
-                    res['fixed']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
+                    res['fixed']['wind_speed']['mean'][i_out, i_lat_in_subset, i_lon] = v_mean
+                    res['fixed']['wind_speed']['percentile'][5][i_out, i_lat_in_subset, i_lon] = v_perc5
+                    res['fixed']['wind_speed']['percentile'][32][i_out, i_lat_in_subset, i_lon] = v_perc32
+                    res['fixed']['wind_speed']['percentile'][50][i_out, i_lat_in_subset, i_lon] = v_perc50
 
                     v_ranks = get_percentile_ranks(v_req_alt[:, fixed_height_id], [4., 8., 14., 25.])
-                    res['fixed']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
-                    res['fixed']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
-                    res['fixed']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
-                    res['fixed']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
+                    res['fixed']['wind_speed']['rank'][4][i_out, i_lat_in_subset, i_lon] = v_ranks[0]
+                    res['fixed']['wind_speed']['rank'][8][i_out, i_lat_in_subset, i_lon] = v_ranks[1]
+                    res['fixed']['wind_speed']['rank'][14][i_out, i_lat_in_subset, i_lon] = v_ranks[2]
+                    res['fixed']['wind_speed']['rank'][25][i_out, i_lat_in_subset, i_lon] = v_ranks[3]
 
                     p_fixed_height = p_req_alt[:, fixed_height_id]
 
                     p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_fixed_height)
-                    res['fixed']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
-                    res['fixed']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
-                    res['fixed']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
-                    res['fixed']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
+                    res['fixed']['wind_power_density']['mean'][i_out, i_lat_in_subset, i_lon] = p_mean
+                    res['fixed']['wind_power_density']['percentile'][5][i_out, i_lat_in_subset, i_lon] = p_perc5
+                    res['fixed']['wind_power_density']['percentile'][32][i_out, i_lat_in_subset, i_lon] = p_perc32
+                    res['fixed']['wind_power_density']['percentile'][50][i_out, i_lat_in_subset, i_lon] = p_perc50
 
                     p_ranks = get_percentile_ranks(p_fixed_height, [40., 300., 1600., 9000.])
-                    res['fixed']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
-                    res['fixed']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
-                    res['fixed']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
-                    res['fixed']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
+                    res['fixed']['wind_power_density']['rank'][40][i_out, i_lat_in_subset, i_lon] = p_ranks[0]
+                    res['fixed']['wind_power_density']['rank'][300][i_out, i_lat_in_subset, i_lon] = p_ranks[1]
+                    res['fixed']['wind_power_density']['rank'][1600][i_out, i_lat_in_subset, i_lon] = p_ranks[2]
+                    res['fixed']['wind_power_density']['rank'][9000][i_out, i_lat_in_subset, i_lon] = p_ranks[3]
 
                 # Integrate power along the altitude.
                 for range_id in integration_range_ids:
@@ -272,7 +313,7 @@ def process_complete_grid(output_file):
                         y = p_req_alt[i_hr, height_id_start:height_id_final+1]
                         p_integral.append(-np.trapz(y, x))
 
-                    res['integration_ranges']['wind_power_density']['mean'][range_id, i_lat, i_lon] = np.mean(p_integral)
+                    res['integration_ranges']['wind_power_density']['mean'][range_id, i_lat_in_subset, i_lon] = np.mean(p_integral)
 
                 # Determine wind statistics for ceiling cases.
                 for i_out, ceiling_id in enumerate(analyzed_heights_ids['ceilings']):
@@ -286,39 +327,47 @@ def process_complete_grid(output_file):
                     p_ceiling = calc_power(v_ceiling, rho_ceiling)
 
                     v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_ceiling)
-                    res['ceilings']['wind_speed']['mean'][i_out, i_lat, i_lon] = v_mean
-                    res['ceilings']['wind_speed']['percentile'][5][i_out, i_lat, i_lon] = v_perc5
-                    res['ceilings']['wind_speed']['percentile'][32][i_out, i_lat, i_lon] = v_perc32
-                    res['ceilings']['wind_speed']['percentile'][50][i_out, i_lat, i_lon] = v_perc50
+                    res['ceilings']['wind_speed']['mean'][i_out, i_lat_in_subset, i_lon] = v_mean
+                    res['ceilings']['wind_speed']['percentile'][5][i_out, i_lat_in_subset, i_lon] = v_perc5
+                    res['ceilings']['wind_speed']['percentile'][32][i_out, i_lat_in_subset, i_lon] = v_perc32
+                    res['ceilings']['wind_speed']['percentile'][50][i_out, i_lat_in_subset, i_lon] = v_perc50
 
                     v_ranks = get_percentile_ranks(v_ceiling, [4., 8., 14., 25.])
-                    res['ceilings']['wind_speed']['rank'][4][i_out, i_lat, i_lon] = v_ranks[0]
-                    res['ceilings']['wind_speed']['rank'][8][i_out, i_lat, i_lon] = v_ranks[1]
-                    res['ceilings']['wind_speed']['rank'][14][i_out, i_lat, i_lon] = v_ranks[2]
-                    res['ceilings']['wind_speed']['rank'][25][i_out, i_lat, i_lon] = v_ranks[3]
+                    res['ceilings']['wind_speed']['rank'][4][i_out, i_lat_in_subset, i_lon] = v_ranks[0]
+                    res['ceilings']['wind_speed']['rank'][8][i_out, i_lat_in_subset, i_lon] = v_ranks[1]
+                    res['ceilings']['wind_speed']['rank'][14][i_out, i_lat_in_subset, i_lon] = v_ranks[2]
+                    res['ceilings']['wind_speed']['rank'][25][i_out, i_lat_in_subset, i_lon] = v_ranks[3]
 
                     p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_ceiling)
-                    res['ceilings']['wind_power_density']['mean'][i_out, i_lat, i_lon] = p_mean
-                    res['ceilings']['wind_power_density']['percentile'][5][i_out, i_lat, i_lon] = p_perc5
-                    res['ceilings']['wind_power_density']['percentile'][32][i_out, i_lat, i_lon] = p_perc32
-                    res['ceilings']['wind_power_density']['percentile'][50][i_out, i_lat, i_lon] = p_perc50
+                    res['ceilings']['wind_power_density']['mean'][i_out, i_lat_in_subset, i_lon] = p_mean
+                    res['ceilings']['wind_power_density']['percentile'][5][i_out, i_lat_in_subset, i_lon] = p_perc5
+                    res['ceilings']['wind_power_density']['percentile'][32][i_out, i_lat_in_subset, i_lon] = p_perc32
+                    res['ceilings']['wind_power_density']['percentile'][50][i_out, i_lat_in_subset, i_lon] = p_perc50
 
                     p_ranks = get_percentile_ranks(p_ceiling, [40., 300., 1600., 9000.])
-                    res['ceilings']['wind_power_density']['rank'][40][i_out, i_lat, i_lon] = p_ranks[0]
-                    res['ceilings']['wind_power_density']['rank'][300][i_out, i_lat, i_lon] = p_ranks[1]
-                    res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat, i_lon] = p_ranks[2]
-                    res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat, i_lon] = p_ranks[3]
+                    res['ceilings']['wind_power_density']['rank'][40][i_out, i_lat_in_subset, i_lon] = p_ranks[0]
+                    res['ceilings']['wind_power_density']['rank'][300][i_out, i_lat_in_subset, i_lon] = p_ranks[1]
+                    res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat_in_subset, i_lon] = p_ranks[2]
+                    res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat_in_subset, i_lon] = p_ranks[3]
 
-        print('Locations analyzed: ({}/{}).'.format(counter, total_iters))
+        print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters)) 
+        # Flatten output, convert to xarray Dataset and write to output file
+        output_file_name_formatted = output_file.format(**{'start_year':start_year, 'final_year':final_year, 'lat_subset_id':i_subset, 'max_lat_subset_id':(n_subsets-1)})
+        print('Writing output to file: {}'.format(output_file_name_formatted))
+        flattened_subset_output = get_result_dict(lats_subset, lons, hours, res)
+        nc_out = xr.Dataset.from_dict(flattened_subset_output)
+
+        nc_out.to_netcdf(output_file_name_formatted)
+        nc_out.close()
+
         time_lapsed = float(timer()-start_time)
         time_remaining = time_lapsed/counter*(total_iters-counter)
         print("Time lapsed: {:.2f} hrs, expected time remaining: {:.2f} hrs.".format(time_lapsed/3600,
                                                                                      time_remaining/3600))
 
-    write_results_to_output_netcdf(output_variables, res)
 
-    nc_out.close()  # Close the output NetCDF file.
     ds.close()  # Close the input NetCDF file.
+    return (n_subsets-1)
 
 
 def create_empty_dict():
@@ -357,88 +406,82 @@ def create_empty_dict():
     return d
 
 
-def write_results_to_output_netcdf(output_variables, result_arrays):
-    for analysis_type in output_variables:
-        for property in output_variables[analysis_type]:
-            for stats_operation in output_variables[analysis_type][property]:
-                if stats_operation == 'mean':
-                    output_variables[analysis_type][property][stats_operation][:] = result_arrays[analysis_type][property][stats_operation]
-                else:
-                    for stats_arg in output_variables[analysis_type][property][stats_operation]:
-                        output_variables[analysis_type][property][stats_operation][stats_arg][:] = result_arrays[analysis_type][property][stats_operation][stats_arg]
-
-
-def create_and_configure_output_netcdf(hours, lats, lons, output_file):
-    # Write output to a new NetCDF file.
-    nc_out = Dataset(output_file, "w", format="NETCDF3_64BIT_OFFSET")
-    nc_out.createDimension("time", len(hours))
-    nc_out.createDimension("latitude", len(lats))
-    nc_out.createDimension("longitude", len(lons))
-    nc_out.createDimension("height_range_ceiling", dimension_sizes['ceilings'])
-    nc_out.createDimension("fixed_height", dimension_sizes['fixed'])
-    nc_out.createDimension("integration_range_id", dimension_sizes['integration_ranges'])
-    hours_out = nc_out.createVariable("time", "i4", ("time",))
-    lats_out = nc_out.createVariable("latitude", "f4", ("latitude",))
-    lons_out = nc_out.createVariable("longitude", "f4", ("longitude",))
-    height_range_ceilings_out = nc_out.createVariable("height_range_ceiling", "f4", ("height_range_ceiling",))
-    fixed_heights_out = nc_out.createVariable("fixed_height", "f4", ("fixed_height",))
-    integration_range_ids_out = nc_out.createVariable("integration_range_id", "i4", ("integration_range_id",))
-
-    output_variables = create_empty_dict()
-
-    output_variables['fixed']['wind_speed']['mean'] = nc_out.createVariable("v_fixed_mean", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][5] = nc_out.createVariable("v_fixed_perc5", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][32] = nc_out.createVariable("v_fixed_perc32", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['percentile'][50] = nc_out.createVariable("v_fixed_perc50", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][4] = nc_out.createVariable("v_fixed_rank4", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][8] = nc_out.createVariable("v_fixed_rank8", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][14] = nc_out.createVariable("v_fixed_rank14", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_speed']['rank'][25] = nc_out.createVariable("v_fixed_rank25", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['mean'] = nc_out.createVariable("p_fixed_mean", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][5] = nc_out.createVariable("p_fixed_perc5", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][32] = nc_out.createVariable("p_fixed_perc32", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['percentile'][50] = nc_out.createVariable("p_fixed_perc50", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][40] = nc_out.createVariable("p_fixed_rank40", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][300] = nc_out.createVariable("p_fixed_rank300", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][1600] = nc_out.createVariable("p_fixed_rank1600", "f4", ("fixed_height", "latitude", "longitude"))
-    output_variables['fixed']['wind_power_density']['rank'][9000] = nc_out.createVariable("p_fixed_rank9000", "f4", ("fixed_height", "latitude", "longitude"))
-
-    output_variables['integration_ranges']['wind_power_density']['mean'] = nc_out.createVariable("p_integral_mean", "f4", ("integration_range_id", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['mean'] = nc_out.createVariable("v_ceiling_mean", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][5] = nc_out.createVariable("v_ceiling_perc5", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][32] = nc_out.createVariable("v_ceiling_perc32", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['percentile'][50] = nc_out.createVariable("v_ceiling_perc50", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][4] = nc_out.createVariable("v_ceiling_rank4", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][8] = nc_out.createVariable("v_ceiling_rank8", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][14] = nc_out.createVariable("v_ceiling_rank14", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_speed']['rank'][25] = nc_out.createVariable("v_ceiling_rank25", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['mean'] = nc_out.createVariable("p_ceiling_mean", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][5] = nc_out.createVariable("p_ceiling_perc5", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][32] = nc_out.createVariable("p_ceiling_perc32", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['percentile'][50] = nc_out.createVariable("p_ceiling_perc50", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][40] = nc_out.createVariable("p_ceiling_rank40", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][300] = nc_out.createVariable("p_ceiling_rank300", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][1600] = nc_out.createVariable("p_ceiling_rank1600", "f4", ("height_range_ceiling", "latitude", "longitude"))
-    output_variables['ceilings']['wind_power_density']['rank'][9000] = nc_out.createVariable("p_ceiling_rank9000", "f4", ("height_range_ceiling", "latitude", "longitude"))
-
-    return fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables
-
-
-def initialize_result_arrays(lats, lons):
+def initialize_result_dict(lats, lons):
     # Arrays for temporary saving the results during processing, after which the results are written all at once to the
     # output file.
-    result_arrays = create_empty_dict()
+    result_dict = create_empty_dict()
 
-    for analysis_type in result_arrays:
-        for property in result_arrays[analysis_type]:
-            for stats_operation in result_arrays[analysis_type][property]:
+    for analysis_type in result_dict:
+        for property in result_dict[analysis_type]:
+            for stats_operation in result_dict[analysis_type][property]:
                 if stats_operation == 'mean':
-                    result_arrays[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                    result_dict[analysis_type][property][stats_operation] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
                 else:
-                    for stats_arg in result_arrays[analysis_type][property][stats_operation]:
-                        result_arrays[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
+                    for stats_arg in result_dict[analysis_type][property][stats_operation]:
+                        result_dict[analysis_type][property][stats_operation][stats_arg] = np.zeros((dimension_sizes[analysis_type], len(lats), len(lons)))
 
-    return result_arrays
+    return result_dict
+
+
+def get_result_dict(lats, lons, hours, analysis_results):
+    """" Flatten the result array and include the required dimensions to make it convertible to 
+         an xarray Dataset
+    Args:
+        lats (list): Latitudes to be written out
+        lons (list): Longitudes to be written out
+        hours (list): Hours to be written out
+        analysis_results (dict): dictionary of result arrays to be written out
+
+    Returns:
+        result_dict (dict): containig al output information in for convetible to xarray dataset
+    """
+
+    # Dictionaries of naming settings for the flattening process:
+    # Analysis type - dimension names
+    dimension_names = {
+        'fixed' : 'fixed_height', 
+        'ceilings' : 'height_range_ceiling',
+        'integration_ranges' : 'integration_range_id',
+    }
+    # Analysis to variable names
+    var_names = {
+          #     Properties
+          'wind_power_density' : 'p',
+          'wind_speed' : 'v',
+          #     Analysis types
+          'fixed' : 'fixed',
+          'ceilings' : 'ceiling',
+          'integration_ranges' : 'integral',
+          #     Stats operation
+          'mean' : 'mean',
+          'percentile' : 'perc',
+          'rank' : 'rank',
+    }
+
+    # Inlcude dimension/general variable information in the flattened result array
+    result_dict = {}
+    result_dict['latitude'] = {"dims":("latitude"), "data":lats}
+    result_dict['longitude'] = {"dims":("longitude"), "data":lons}
+    result_dict['time'] = {"dims":("time"), "data":hours}
+    result_dict['fixed_height'] = {"dims":("fixed_height"), "data":analyzed_heights['fixed']}
+    result_dict['height_range_ceiling'] = {"dims":("height_range_ceiling"), "data":analyzed_heights['ceilings']}
+    result_dict['integration_range_id'] = {"dims":("integration_range_id"), "data":integration_range_ids}
+
+    
+    # Flattening the result array
+    flattened_analysis_results = flatten_dict(analysis_results) # flatten the dict inserting '.' between keywords
+    for flattened_var_name, result_array in flattened_analysis_results.items():
+        # Interpret flatteney keyword to combined output var names
+        split_res = flattened_var_name.split('.')
+        analysis_type, property, stats_operation = split_res[:3]
+        output_var_names = [var_names[property], var_names[analysis_type], var_names[stats_operation]]
+        combined_var_name = '_'.join(output_var_names) + ''.join(split_res[3:] )
+        # Fill result_dict with dimensions and data to match xr.Dataset format
+        result_dict[combined_var_name]={"dims":(dimension_names[analysis_type], "latitude", "longitude"), "data":result_array}
+
+    return result_dict
+
+
 
 
 def eval_single_location(location_lat, location_lon, start_year, final_year):
@@ -496,6 +539,49 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
     return hours, v_req_alt, v_ceilings, optimal_heights
 
+def interpret_input_args():
+    
+    if len(sys.argv) > 1: # User input was given
+        end_id_set = False
+        help = """
+        python process_data.py                  : process all latitude subsets
+        python process_data.py -s subsetID      : process individual subset with ID subsetID
+        python process_data.py -s ID1 -e ID2    : process range of subsets starting at subset ID1 until ID2 (inclusively)
+        python process_data.py -h               : display this help
+        """
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], "hs:e:", ["help", "start=", "end="])
+        except getopt.GetoptError:     # User input not given correctly, display help and end
+            print(help)
+            sys.exit()
+        for opt, arg in opts:
+            if opt in ("-h", "--help"):    # Help argument called, display help and end
+                print (help)
+                sys.exit()
+            elif opt in ("-s", "--start"):     # Specific subset by index selected: set start to this id 
+                input_start_subset_id = int(arg)
+            elif opt in ("-e", "--end"):     # Modified end of subset range indicated (inclusively) 
+                input_end_subset_id = int(arg)
+                end_id_set = True
+        if end_id_set and not input_end_subset_id == -1 and input_end_subset_id < input_start_subset_id:
+                raise ValueError("End subset id {} smaller than start id {}, check given input".format(
+                              input_end_subset_id, input_start_subset_id))
+        elif not end_id_set: # End ID not specified - process single subset with ID input_start_subset_id
+            input_end_subset_id = input_start_subset_id
+    else:
+        input_start_subset_id = 0 # Standard settings to process all subsets
+        input_end_subset_id = -1
+            
+    return input_start_subset_id, input_end_subset_id
 
 if __name__ == '__main__':
-    process_complete_grid(output_file_name)
+    print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
+
+    # Read command-line arguments
+    input_start_subset_id, input_end_subset_id = interpret_input_args()
+
+    # Start processing
+    max_subset_id = process_grid_subsets(output_file_name_subset, input_start_subset_id, input_end_subset_id)
+
+    if len(sys.argv) == 1: #No user input given - all subsets processed at once, combine instantly
+        merge_output_files(start_year, final_year, max_subset_id)

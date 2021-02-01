@@ -43,8 +43,7 @@ The wind resource analysis requires ERA5 wind and geopotential data which can be
 requires an [CDS account](https://cds.climate.copernicus.eu/user/register) and
 [installing the CDS API key](https://cds.climate.copernicus.eu/api-how-to).
 Furthermore, it is required to accept the terms and conditions for using the ERA5 data. The command below can be used to
-start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). This
-command should be executed manually for each year of data that you want to download. The size of 1 year of wind data for
+start downloading the wind dataset for the requested year (make sure that the new virtual environment is active). The size of 1 year of wind data for
 Western and Central Europe, as used in the paper, is roughly 2 GB. Make sure that there is sufficient disk
 space available, that you point the parameter era5_data_dir in the config.py file to the correct location and that you download all the years of data as specified in config.py. Note that the downloading is time
 costly, in the order of magnitude of days. It is important to prevent your machine from going into sleep mode while the downloading. The

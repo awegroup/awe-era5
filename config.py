@@ -33,8 +33,10 @@ surface_file_name_format = 'sfc_{:d}_{:02d}.netcdf'  #"{:d}_europe_{:d}_152.nc"
 
 # Downloading settings.
 area = "65/-20/30/20"
-upper_level = 122
+upper_level = 112
 
 # Processing settings.
-output_file_name = "results/processed_data_{:d}_{:d}.nc".format(start_year, final_year)
-read_n_lats_at_once = 1
+output_file_name = "results/processed_data_europe_{start_year:d}_{final_year:d}.nc"
+output_file_name_subset = "results/processed_data_europe_{start_year:d}_{final_year:d}_subset_{lat_subset_id:04d}_of_{max_lat_subset_id:04d}.nc"
+
+read_n_lats_per_subset = 1
