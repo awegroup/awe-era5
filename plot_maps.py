@@ -9,23 +9,16 @@ Example::
     $ python plot_maps.py -h           : display this help
 
 """
-import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib.ticker import LogFormatter
-from matplotlib import cm
 from matplotlib.cbook import MatplotlibDeprecationWarning
 from mpl_toolkits.basemap import Basemap
 import warnings
 
-import sys, getopt
-import os
-
 from utils import hour_to_date_str
 from plotting_utils import read_dataset_user_input
-from config import output_file_name, output_file_name_subset, start_year, final_year
-
 
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
@@ -34,7 +27,7 @@ map_resolution = 'i'  # Options for resolution are c (crude), l (low), i (interm
 cline_label_format_default = '%.1f'
 n_fill_levels_default = 14
 n_line_levels_default = 6
-color_map = cm.YlOrRd
+color_map = plt.get_cmap('YlOrRd')
 
 # Load the processed data from the NetCDF files specified in the input.
 nc = read_dataset_user_input()
@@ -50,14 +43,12 @@ p_integral_mean = nc['p_integral_mean'].values
 hours = nc['time'].values  # Hours since 1900-01-01 00:00:00, see: print(nc['time'].values).
 print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(hours[-1]))
 
-
 # Prepare the general map plot.
 lons_grid, lats_grid = np.meshgrid(lons, lats)
 map_plot = Basemap(projection='merc', llcrnrlon=np.min(lons), llcrnrlat=np.min(lats), urcrnrlon=np.max(lons),
                    urcrnrlat=np.max(lats), resolution=map_resolution)
 x_grid, y_grid = map_plot(lons_grid, lats_grid)  # Compute map projection coordinates.
 map_plot_aspect_ratio = 9. / 12.3  # Aspect ratio of Europe map.
-
 
 
 def calc_fig_height(fig_width, subplot_shape, plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right):
@@ -100,7 +91,7 @@ def eval_contour_fill_levels(plot_items):
                   .format(item['contour_fill_levels'][0], i))
 
 
-def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_default, log_scale=False ,
+def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_default, log_scale=False,
                     extend="neither"):
     """"Individual plot of coastlines and contours.
 
@@ -223,7 +214,8 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
 
         plt.axes(ax)
         plt.title(title)
-        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, log_scale=apply_log_scale, extend=extend)
+        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, log_scale=apply_log_scale,
+                                        extend=extend)
 
         # Add axis for colorbar.
         left_pos_colorbar = plot_frame_width/3*i + (plot_frame_width/3-width_colorbar)/2 + plot_frame_left
@@ -249,7 +241,8 @@ def plot_panel_2x3(plot_items, column_titles, row_items):
     # Set up figure, calculate determine figure height corresponding to desired width.
     plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .96, 0.0, .035, 0.88
     fig_width = 9.
-    fig_height = calc_fig_height(fig_width, (2, 3), plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right)
+    fig_height = calc_fig_height(fig_width, (2, 3), plot_frame_top, plot_frame_bottom, plot_frame_left,
+                                 plot_frame_right)
 
     fig, axs = plt.subplots(2, 3, figsize=(fig_width, fig_height), dpi=150)
     fig.subplots_adjust(top=plot_frame_top, bottom=plot_frame_bottom, left=plot_frame_left, right=plot_frame_right,
@@ -442,7 +435,7 @@ def plot_figure5():
         'contour_line_levels': linspace1[::4],
         'contour_fill_levels': linspace1,
         'colorbar_ticks': linspace1[::4],
-	'colorbar_tick_fmt': '{:.2f}',
+        'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': '[$MWm/m^2$]',
     }
     logspace2 = np.logspace(np.log10(4), np.log10(21.0), num=17)

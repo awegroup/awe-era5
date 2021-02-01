@@ -1,6 +1,6 @@
 import xarray as xr
-import sys, getopt
-import os
+import sys
+import getopt
 
 from config import output_file_name, output_file_name_subset, start_year, final_year
 
@@ -21,27 +21,30 @@ def read_dataset_user_input():
     if len(sys.argv) > 1: 
         try:
             opts, args = getopt.getopt(sys.argv[1:], "hm:c", ["help", "maxid=", "combined"])
-        except getopt.GetoptError:     # User input not given correctly, display help and end
+        except getopt.GetoptError:  # User input not given correctly, display help and end
             print(help)
             sys.exit()
         for opt, arg in opts:
-            if opt in ("-h", "--help"):    # Help argument called, display help and end
-                print (help)
+            if opt in ("-h", "--help"):  # Help argument called, display help and end
+                print(help)
                 sys.exit()
-            elif opt in ("-m", "--maxid"):     # User Input maximal subset id given  
+            elif opt in ("-m", "--maxid"):  # User Input maximal subset id given
                 max_subset_id = int(arg)
                 # find all subset files matching the settings in config.py - including all until max_subset_id 
-                all_year_subset_files = [output_file_name_subset.format(**{'start_year':start_year, 'final_year':final_year,\
-                    'lat_subset_id':subset_id, 'max_lat_subset_id':max_subset_id}) for subset_id in range(max_subset_id +1)]
-                print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year,\
-                    final_year, max_subset_id))
+                all_year_subset_files = [output_file_name_subset.format(**{'start_year': start_year,
+                                                                           'final_year': final_year,
+                                                                           'lat_subset_id': subset_id,
+                                                                           'max_lat_subset_id': max_subset_id})
+                                         for subset_id in range(max_subset_id+1)]
+                print('All data for {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year,
+                                                                                            max_subset_id))
                 nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
-            elif opt in ("-c", "--combined"):     # User Input to use combined file
-                file_name = output_file_name.format(**{'start_year':start_year, 'final_year':final_year})
+            elif opt in ("-c", "--combined"):  # User Input to use combined file
+                file_name = output_file_name.format(**{'start_year': start_year, 'final_year': final_year})
                 nc = xr.open_dataset(file_name)
     else:
-        print(help)
-        sys.exit()
+        file_name = output_file_name.format(**{'start_year': start_year, 'final_year': final_year})
+        nc = xr.open_dataset(file_name)
 
     return nc
 
