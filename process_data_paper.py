@@ -140,8 +140,8 @@ def process_complete_grid(output_file):
     check_for_missing_data(hours)
     surface_elevation = get_surface_elevation(lats, lons)
 
-    fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out, output_variables = create_and_configure_output_netcdf(
-        hours, lats, lons, output_file)
+    fixed_heights_out, height_range_ceilings_out, hours_out, integration_range_ids_out, lats_out, lons_out, nc_out,\
+        output_variables = create_and_configure_output_netcdf(hours, lats, lons, output_file)
 
     res = initialize_result_arrays(lats, lons)
 

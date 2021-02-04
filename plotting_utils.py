@@ -18,7 +18,7 @@ def read_dataset_user_input():
         python plot_maps.py -h           : display this help
         """
 
-    if len(sys.argv) > 1: 
+    if len(sys.argv) > 1:
         try:
             opts, args = getopt.getopt(sys.argv[1:], "hm:c", ["help", "maxid=", "combined"])
         except getopt.GetoptError:  # User input not given correctly, display help and end
@@ -30,7 +30,7 @@ def read_dataset_user_input():
                 sys.exit()
             elif opt in ("-m", "--maxid"):  # User Input maximal subset id given
                 max_subset_id = int(arg)
-                # find all subset files matching the settings in config.py - including all until max_subset_id 
+                # find all subset files matching the settings in config.py - including all until max_subset_id
                 all_year_subset_files = [output_file_name_subset.format(**{'start_year': start_year,
                                                                            'final_year': final_year,
                                                                            'lat_subset_id': subset_id,
@@ -47,4 +47,3 @@ def read_dataset_user_input():
         nc = xr.open_dataset(file_name)
 
     return nc
-

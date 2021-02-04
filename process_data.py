@@ -154,9 +154,9 @@ def merge_output_files(start_year, final_year, max_subset_id):
         the matching files
 
     Args:
-        start_year (int): First year of processing 
-        final_year (int): Final year of processing 
-        max_subset_id (int): Maximal subset id 
+        start_year (int): First year of processing
+        final_year (int): Final year of processing
+        max_subset_id (int): Maximal subset id
 
     """
     all_year_subset_files = [output_file_name_subset.format(**{'start_year': start_year,
@@ -169,7 +169,7 @@ def merge_output_files(start_year, final_year, max_subset_id):
                                                                                           max_subset_id))
     nc = xr.open_mfdataset(all_year_subset_files, concat_dim='latitude')
     nc.to_netcdf(output_file_name.format(**{'start_year': start_year, 'final_year': final_year}))
-    
+
     return 0
 
 
@@ -194,10 +194,10 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
         By default all subsets are analyzed
 
     Args:
-        output_file (str): Name of netCDF file to which the results are saved for the respective 
+        output_file (str): Name of netCDF file to which the results are saved for the respective
                            subset. (including format {} placeholders)
         start_subset_id (int): Starting subset id to be analyzed
-        end_subset_id (int): Last subset id to be analyzed 
+        end_subset_id (int): Last subset id to be analyzed
                              (set to -1 to process all subsets after start_subset_id)
     """
     ds, lons, lats, levels, hours, i_highest_level = read_raw_data(start_year, final_year)
@@ -238,7 +238,7 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
         print('    Result array configured, reading subset input now, time lapsed: {:.2f} hrs'
               .format(float(timer()-start_time)/3600))
 
-        # Read data for the subset latitudes  
+        # Read data for the subset latitudes
         v_levels_east = ds.variables['u'][:, i_highest_level:, lat_ids_subset, :].values
         v_levels_north = ds.variables['v'][:, i_highest_level:, lat_ids_subset, :].values
         v_levels = (v_levels_east**2 + v_levels_north**2)**.5
@@ -325,7 +325,7 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
                     # Find the height maximizing the wind speed for each hour.
                     v_ceiling = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
                     v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + \
-                                    ceiling_id
+                        ceiling_id
                     # optimal_heights = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
 
                     # rho_ceiling = get_density_at_altitude(optimal_heights + surf_elev)
@@ -356,7 +356,7 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
                     res['ceilings']['wind_power_density']['rank'][1600][i_out, i_lat_in_subset, i_lon] = p_ranks[2]
                     res['ceilings']['wind_power_density']['rank'][9000][i_out, i_lat_in_subset, i_lon] = p_ranks[3]
 
-        print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters)) 
+        print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters))
         # Flatten output, convert to xarray Dataset and write to output file.
         output_file_name_formatted = output_file.format(**{'start_year': start_year, 'final_year': final_year,
                                                            'lat_subset_id': i_subset, 'max_lat_subset_id': n_subsets-1})
@@ -430,7 +430,7 @@ def initialize_result_dict(lats, lons):
 
 
 def get_result_dict(lats, lons, hours, analysis_results):
-    """" Flatten the result array and include the required dimensions to make it convertible to 
+    """" Flatten the result array and include the required dimensions to make it convertible to
          an xarray Dataset
     Args:
         lats (list): Latitudes to be written out
@@ -472,7 +472,7 @@ def get_result_dict(lats, lons, hours, analysis_results):
     result_dict['fixed_height'] = {"dims": "fixed_height", "data": analyzed_heights['fixed']}
     result_dict['height_range_ceiling'] = {"dims": "height_range_ceiling", "data": analyzed_heights['ceilings']}
     result_dict['integration_range_id'] = {"dims": "integration_range_id", "data": integration_range_ids}
-    
+
     # Flattening the result array
     flattened_analysis_results = flatten_dict(analysis_results)  # flatten the dict inserting '.' between keywords
     for flattened_var_name, result_array in flattened_analysis_results.items():
@@ -545,7 +545,7 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
 
 def interpret_input_args():
-    if len(sys.argv) > 1: # User input was given
+    if len(sys.argv) > 1:  # User input was given
         end_id_set = False
         help = """
         python process_data.py                  : process all latitude subsets
@@ -568,14 +568,14 @@ def interpret_input_args():
                 input_end_subset_id = int(arg)
                 end_id_set = True
         if end_id_set and not input_end_subset_id == -1 and input_end_subset_id < input_start_subset_id:
-                raise ValueError("End subset id {} smaller than start id {}, check given input".format(
+            raise ValueError("End subset id {} smaller than start id {}, check given input".format(
                               input_end_subset_id, input_start_subset_id))
         elif not end_id_set:  # End ID not specified - process single subset with ID input_start_subset_id
             input_end_subset_id = input_start_subset_id
     else:
         input_start_subset_id = 0  # Standard settings to process all subsets
         input_end_subset_id = -1
-            
+
     return input_start_subset_id, input_end_subset_id
 
 
