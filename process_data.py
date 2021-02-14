@@ -508,8 +508,8 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
     i_lat = list(lats).index(location_lat)
     i_lon = list(lons).index(location_lon)
 
-    v_levels_east = ds.variables['u'][:, i_highest_level:, i_lat, i_lon]
-    v_levels_north = ds.variables['v'][:, i_highest_level:, i_lat, i_lon]
+    v_levels_east = ds.variables['u'][:, i_highest_level:, i_lat, i_lon].values
+    v_levels_north = ds.variables['v'][:, i_highest_level:, i_lat, i_lon].values
     v_levels = (v_levels_east**2 + v_levels_north**2)**.5
 
     t_levels = ds.variables['t'][:, i_highest_level:, i_lat, i_lon].values
