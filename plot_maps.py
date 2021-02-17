@@ -140,7 +140,7 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
     # Set up figure, calculate figure height corresponding to desired width.
     plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .92, 0, .035, 0.88
     fig_width = 9.
-    fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom , plot_frame_left,
+    fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom, plot_frame_left,
                                  plot_frame_right)
 
     fig, axs = plt.subplots(1, 3, figsize=(fig_width, fig_height), dpi=150)
@@ -191,7 +191,7 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
         column_titles = [None]*3
     plot_frame_width = plot_frame_right - plot_frame_left
 
-    fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom , plot_frame_left,
+    fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom, plot_frame_left,
                                  plot_frame_right)
 
     fig, axs = plt.subplots(1, 3, figsize=(fig_width, fig_height), dpi=150)
@@ -306,7 +306,7 @@ def percentile_plots(plot_var, i_case, plot_settings):
     plot_items = []
     plot_data_max = 0
     for s in plot_var_suffix:
-        d = nc[plot_var+s].values[i_case, :, :] 
+        d = nc[plot_var+s].values[i_case, :, :]
         if plot_var[0] == "p":
             d *= 1e-3
         plot_items.append({'data': d})
@@ -692,7 +692,7 @@ def plot_figure10():
 
     linspace10 = np.linspace(0., 50., 21)
     plot_item10 = {
-        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :])-
+        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :]) -
                 (100.-nc["p_fixed_rank40"].values[0, :, :]),
         'contour_fill_levels': linspace10,
         'contour_line_levels': sorted([1.1, 2.2]+list(linspace10[::4][:-2])),
@@ -703,7 +703,7 @@ def plot_figure10():
     }
     linspace11 = np.linspace(0., 55., 21)
     plot_item11 = {
-        'data': (100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :])-
+        'data': (100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :]) -
                 (100.-nc["p_fixed_rank300"].values[0, :, :]),
         'contour_fill_levels': linspace11,
         'contour_line_levels': linspace11[::4][:-2],
@@ -714,7 +714,7 @@ def plot_figure10():
     }
     linspace12 = np.linspace(0., 45., 21)
     plot_item12 = {
-        'data': (100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :])-
+        'data': (100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :]) -
                 (100.-nc["p_fixed_rank1600"].values[0, :, :]),
         'contour_fill_levels': linspace12,
         'contour_line_levels': linspace12[::4][:-2],
@@ -780,7 +780,7 @@ def plot_figure11():
 
     linspace10 = np.linspace(0., 20., 21)
     plot_item10 = {
-        'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :])+
+        'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :]) +
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace10,
         'contour_line_levels': sorted([1.1]+list(linspace10[::4])),
@@ -791,7 +791,7 @@ def plot_figure11():
     }
     linspace11 = np.linspace(0., 38., 21)
     plot_item11 = {
-        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :])-
+        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :]) -
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace11,
         'contour_line_levels': sorted([2.3]+list(linspace11[::4])),
@@ -802,7 +802,7 @@ def plot_figure11():
     }
     linspace12 = np.linspace(0., 42., 21)
     plot_item12 = {
-        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :])-
+        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :]) -
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace12,
         'contour_line_levels': sorted([3.8]+list(linspace12[::4])),

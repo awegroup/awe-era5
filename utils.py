@@ -187,9 +187,9 @@ def compute_level_heights(levels, surface_pressure, levels_temperature, levels_h
 
 
 def flatten_dict(input_dict, parent_key='', sep='.'):
-    """"Recursive function to convert multi-level dictionary to flat dictionary. 
+    """"Recursive function to convert multi-level dictionary to flat dictionary.
 
-    Args: 
+    Args:
         input_dict (dict): Dictionary to be flattened
         parent_key (str): Key under which 'input_dict' is stored in the higher-level dictionary
         sep (str): Separator used for joining together the keys pointing to the lower-level object.
@@ -199,6 +199,6 @@ def flatten_dict(input_dict, parent_key='', sep='.'):
         new_key = parent_key + sep + str(k).replace(" ", "") if parent_key else str(k).replace(" ", "")
         if isinstance(v, dict):
             items.extend(flatten_dict(v, new_key, sep=sep).items())
-        else: 
+        else:
             items.append((new_key, v))
     return dict(items)
