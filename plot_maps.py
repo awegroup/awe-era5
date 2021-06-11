@@ -23,7 +23,7 @@ from plotting_utils import read_dataset_user_input
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
 # General plot settings.
-map_resolution = 'i'  # Options for resolution are c (crude), l (low), i (intermediate), h (high), f (full) or None
+map_resolution = 'h'  # Options for resolution are c (crude), l (low), i (intermediate), h (high), f (full) or None
 cline_label_format_default = '%.1f'
 n_fill_levels_default = 14
 n_line_levels_default = 6
@@ -45,8 +45,17 @@ print("Analyzing " + hour_to_date_str(hours[0]) + " till " + hour_to_date_str(ho
 
 # Prepare the general map plot.
 lons_grid, lats_grid = np.meshgrid(lons, lats)
-map_plot = Basemap(projection='merc', llcrnrlon=np.min(lons), llcrnrlat=np.min(lats), urcrnrlon=np.max(lons),
+
+# Plotting map - region selection
+plot_northern_germany = False
+if plot_northern_germany:
+	label_cities = True
+	map_plot = Basemap(projection='merc', llcrnrlon=7.25, llcrnrlat=51.4, urcrnrlon=10.5,
+                   urcrnrlat=54.25, resolution=map_resolution)
+else:
+	map_plot = Basemap(projection='merc', llcrnrlon=np.min(lons), llcrnrlat=np.min(lats), urcrnrlon=np.max(lons),
                    urcrnrlat=np.max(lats), resolution=map_resolution)
+
 x_grid, y_grid = map_plot(lons_grid, lats_grid)  # Compute map projection coordinates.
 map_plot_aspect_ratio = 9. / 12.3  # Aspect ratio of Europe map.
 
@@ -124,6 +133,16 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
     plt.rcParams['font.weight'] = 'bold'
     plt.clabel(contour_lines, fmt=cline_label_format, inline=1, fontsize=9, colors='k')
     plt.rcParams['font.weight'] = 'normal'
+
+    if label_cities = True:
+	    HH = (53.551086, 9.993682)
+	    Hannover = (52.373954, 9.741647)
+	    Bremen = (53.075176, 8.801850)
+	    city_labels=['Hamburg', 'Hannover', 'Bremen']
+	    x_cities, y_cities = map_plot([HH[1], Hannover[1], Bremen[1]], [HH[0], Hannover[0], Bremen[0]]) 
+	    map_plot.plot(x_cities, y_cities, 'o',color='darkslategrey',  markersize=4)
+	    for label, xpt, ypt in zip(city_labels, x_cities, y_cities):
+		plt.text(xpt+0.5, ypt+0.01, label, color='darkslategrey', fontsize=6)
 
     return contour_fills
 
@@ -438,7 +457,7 @@ def plot_figure5():
         'colorbar_tick_fmt': '{:.2f}',
         'colorbar_label': '[$MWm/m^2$]',
     }
-    logspace2 = np.logspace(np.log10(4), np.log10(21.0), num=17)
+    logspace2 = np.logspace(np.log10(4), np.log10(28.0), num=17)
     plot_item2 = {
         'data': plot_item1['data']/plot_item0['data'],
         'contour_line_levels': [10, 15],
@@ -481,7 +500,7 @@ def plot_figure4():
     fixed_height_ref = 100.
     fixed_height_id = list(fixed_heights).index(fixed_height_ref)
 
-    linspace0 = np.linspace(0, .03, 21)
+    linspace0 = np.linspace(0, .033, 21)
     plot_item0 = {
         'data': nc["p_fixed_perc5"].values[fixed_height_id, :, :]*1e-3,
         'contour_fill_levels': linspace0,
@@ -604,7 +623,7 @@ def plot_figure9_lower():
     fixed_height_ref = 100.
     fixed_height_id = list(fixed_heights).index(fixed_height_ref)
 
-    linspace0 = np.linspace(1, 6., 21)
+    linspace0 = np.linspace(1, 28., 21)
     plot_item0 = {
         'data': nc["p_ceiling_perc5"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc5"].values[fixed_height_id, :, :],
@@ -652,7 +671,7 @@ def plot_figure10():
     height_ceiling = 500.
     height_ceiling_id = list(height_range_ceilings).index(height_ceiling)
 
-    linspace00 = np.linspace(50, 100, 21)
+    linspace00 = np.linspace(0, 100, 21)
     plot_item00 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :],
         'contour_fill_levels': linspace00,
@@ -738,7 +757,7 @@ def plot_figure11():
     baseline_height_ceiling = 500.
     baseline_height_ceiling_id = list(height_range_ceilings).index(baseline_height_ceiling)
 
-    linspace00 = np.linspace(50, 100, 21)
+    linspace00 = np.linspace(0, 100, 21)
     plot_item00 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :],
         'contour_fill_levels': linspace00,
@@ -749,7 +768,7 @@ def plot_figure11():
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
-    linspace01 = np.linspace(70, 100, 21)
+    linspace01 = np.linspace(10, 100, 21)
     plot_item01 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :],
         'contour_fill_levels': linspace01,
@@ -760,7 +779,7 @@ def plot_figure11():
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
-    linspace02 = np.linspace(80, 100, 21)
+    linspace02 = np.linspace(10, 100, 21)
     plot_item02 = {
         'data': 100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :],
         'contour_fill_levels': linspace02,
@@ -778,7 +797,7 @@ def plot_figure11():
     eval_contour_fill_levels(plot_items)
     plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
 
-    linspace10 = np.linspace(0., 20., 21)
+    linspace10 = np.linspace(0., 22., 21)
     plot_item10 = {
         'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :]) +
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
@@ -800,7 +819,7 @@ def plot_figure11():
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
-    linspace12 = np.linspace(0., 42., 21)
+    linspace12 = np.linspace(0., 50., 21)
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :]) -
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
@@ -821,11 +840,11 @@ def plot_figure11():
 
 if __name__ == "__main__":
     plot_figure3()
-    plot_figure4()
-    plot_figure5()
-    plot_figure8()
-    plot_figure9_upper()
-    plot_figure9_lower()
-    plot_figure10()
-    plot_figure11()
+    #plot_figure4()
+    #plot_figure5()
+    #plot_figure8()
+    #plot_figure9_upper()
+    #plot_figure9_lower()
+    #plot_figure10()
+    #plot_figure11()
     plt.show()
