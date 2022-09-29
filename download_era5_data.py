@@ -96,16 +96,14 @@ def get_request_basis(level_type):
         #   V component of wind [m/s] (132/v)
         #   Humidity [kg/kg] (133/q)
         era5_request = {
-            "class": "ea",
-            "expver": "1",
+            # "class": "ea",
+            # "expver": "1",
             "stream": "oper",
             "type": "an",
             "levelist": "{}/to/137".format(upper_level),
             "levtype": "ml",
             "param": "130/131/132/133",
-            "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/"
-                    "10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/"
-                    "20:00:00/21:00:00/22:00:00/23:00:00",
+            "time": "00/to/23",
             "format": "netcdf",
         }
     elif level_type == 'sfc':
@@ -118,9 +116,7 @@ def get_request_basis(level_type):
             "type": "an",
             "levtype": "sfc",
             "param": "134.128",
-            "time": "00:00:00/01:00:00/02:00:00/03:00:00/04:00:00/05:00:00/06:00:00/07:00:00/08:00:00/09:00:00/"
-                    "10:00:00/11:00:00/12:00:00/13:00:00/14:00:00/15:00:00/16:00:00/17:00:00/18:00:00/19:00:00/"
-                    "20:00:00/21:00:00/22:00:00/23:00:00",
+            "time": "00/to/23",
             "format": "netcdf",
         }
     elif level_type == 'ml_paper':
@@ -225,6 +221,9 @@ def download_all():
                 p = Process(target=download_data, args=(m, y, era5_request, file_name))
                 processes.append(p)
                 p.start()
+                break
+            break
+        break
 
     for p in processes:
         p.join()

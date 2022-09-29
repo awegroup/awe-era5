@@ -45,6 +45,5 @@ def read_dataset_user_input():
     else:
         file_name = output_file_name.format(**{'start_year': start_year, 'final_year': final_year})
         nc = xr.open_dataset(file_name)
-
     return nc
 

@@ -20,47 +20,24 @@ import sys
 import getopt
 import dask
 
-from utils import hour_to_date_str, compute_level_heights, flatten_dict
+from utils import hour_to_date_str, compute_level_heights, flatten_dict, multi_interp
 from config import start_year, final_year, era5_data_dir, model_level_file_name_format, surface_file_name_format,\
     output_file_name, output_file_name_subset, read_n_lats_per_subset
 
 # Overwrite default with single-threaded scheduler.
 dask.config.set(scheduler='synchronous')
+dask.config.set(**{'array.slicing.split_large_chunks': False})
 
 # Set the relevant heights for the different analysis types in meter.
 analyzed_heights = {
     'floor': 50.,
-    'ceilings': [200., 300., 400., 500., 1000., 1250.],
+    'ceilings': [300., 500., 1000., 1500],
     'fixed': [100.],
-    'integration_ranges': [(50., 150.), (10., 500.)],
 }
 dimension_sizes = {
     'ceilings': len(analyzed_heights['ceilings']),
     'fixed': len(analyzed_heights['fixed']),
-    'integration_ranges': len(analyzed_heights['integration_ranges']),
 }
-integration_range_ids = list(range(dimension_sizes['integration_ranges']))
-
-# Heights above the ground at which the wind speed is evaluated (using interpolation).
-heights_of_interest = [500., 440.58, 385.14, 334.22, 287.51, 244.68, 200., 169.50, 136.62,
-                       100., 80., 50., 30.96, 10.]
-
-# Add the analyzed_heights values to the heights_of_interest list and remove duplicates.
-heights_of_interest = set(heights_of_interest + [analyzed_heights['floor']] + analyzed_heights['ceilings'] +
-                          analyzed_heights['fixed'] +
-                          [h for int_range in analyzed_heights['integration_ranges'] for h in int_range])
-heights_of_interest = sorted(heights_of_interest, reverse=True)
-
-# Determine the analyzed_heights ids in heights_of_interest.
-analyzed_heights_ids = {
-    'floor': heights_of_interest.index(analyzed_heights['floor']),
-    'ceilings': [heights_of_interest.index(h) for h in analyzed_heights['ceilings']],
-    'fixed': [heights_of_interest.index(h) for h in analyzed_heights['fixed']],
-    'integration_ranges': []
-}
-for int_range in analyzed_heights['integration_ranges']:
-    analyzed_heights_ids['integration_ranges'].append([heights_of_interest.index(int_range[0]),
-                                                       heights_of_interest.index(int_range[1])])
 
 
 def get_statistics(vals):
@@ -162,7 +139,7 @@ def merge_output_files(start_year, final_year, max_subset_id):
     all_year_subset_files = [output_file_name_subset.format(**{'start_year': start_year,
                                                                'final_year': final_year,
                                                                'lat_subset_id': subset_id,
-                                                               'max_lat_subset_id': max_subset_id})
+                                                               'max_lat_subset_id': subset_id})
                              for subset_id in range(max_subset_id+1)]
 
     print('All data for the years {} to {} is read from subset_files from 0 to {}'.format(start_year, final_year,
@@ -222,6 +199,7 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
     total_iters = len(lats) * len(lons)*len(subset_range)/n_subsets
     start_time = timer()
 
+    min_heights = []
     for i_subset in subset_range:
         # Find latitudes corresponding to the current i_subset
         i_lat0 = i_subset * read_n_lats_per_subset
@@ -264,35 +242,43 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
                                                                       surface_pressure[:, i_lat_in_subset, i_lon],
                                                                       t_levels[:, :, i_lat_in_subset, i_lon],
                                                                       q_levels[:, :, i_lat_in_subset, i_lon])
-                # Determine wind at altitudes of interest by means of interpolating the raw wind data.
-                v_req_alt = np.zeros((len(hours), len(heights_of_interest)))  # Interpolation results array.
-                rho_req_alt = np.zeros((len(hours), len(heights_of_interest)))
+                min_height = np.amin(level_heights[:, 0])
+                min_heights.append(min_height)
+                # if min_height < max(analyzed_heights['ceilings']):
+                #     raise ValueError("Requested height is higher than height of highest model level ({:.2f} m)."
+                #                      .format(min_height))
 
-                for i_hr in range(len(hours)):
-                    if not np.all(level_heights[i_hr, 0] > heights_of_interest):
-                        raise ValueError("Requested height ({:.2f} m) is higher than height of highest model level."
-                                         .format(level_heights[i_hr, 0]))
-                    v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
-                                                   v_levels[i_hr, ::-1, i_lat_in_subset, i_lon])
-                    rho_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1],
-                                                     density_levels[i_hr, ::-1])
-                p_req_alt = calc_power(v_req_alt, rho_req_alt)
+                # # Determine wind at fixed heights by means of interpolating the raw wind data.
+                # v_fixed_heights = np.zeros((len(hours), len(analyzed_heights['fixed'])))  # Interpolation results array.
+                # rho_fixed_heights = np.zeros((len(hours), len(analyzed_heights['fixed'])))
+                #
+                # for i_hr in range(len(hours)):
+                #     v_fixed_heights[i_hr, :] = np.interp(analyzed_heights['fixed'], level_heights[i_hr, ::-1],
+                #                                    v_levels[i_hr, ::-1, i_lat_in_subset, i_lon])
+                #     rho_fixed_heights[i_hr, :] = np.interp(analyzed_heights['fixed'], level_heights[i_hr, ::-1],
+                #                                      density_levels[i_hr, ::-1])
+                #
+                # p_fixed_heights = calc_power(v_fixed_heights, rho_fixed_heights)
 
                 # Determine wind statistics at fixed heights of interest.
-                for i_out, fixed_height_id in enumerate(analyzed_heights_ids['fixed']):
-                    v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_req_alt[:, fixed_height_id])
+                for i_out, fixed_height in enumerate(analyzed_heights['fixed']):
+                    v_fixed_height = multi_interp(fixed_height, level_heights[:, ::-1],
+                                                  v_levels[:, ::-1, i_lat_in_subset, i_lon])
+                    rho_fixed_height = multi_interp(fixed_height, level_heights[:, ::-1],
+                                                    density_levels[:, ::-1])
+                    p_fixed_height = calc_power(v_fixed_height, rho_fixed_height)
+
+                    v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_fixed_height)
                     res['fixed']['wind_speed']['mean'][i_out, i_lat_in_subset, i_lon] = v_mean
                     res['fixed']['wind_speed']['percentile'][5][i_out, i_lat_in_subset, i_lon] = v_perc5
                     res['fixed']['wind_speed']['percentile'][32][i_out, i_lat_in_subset, i_lon] = v_perc32
                     res['fixed']['wind_speed']['percentile'][50][i_out, i_lat_in_subset, i_lon] = v_perc50
 
-                    v_ranks = get_percentile_ranks(v_req_alt[:, fixed_height_id], [4., 8., 14., 25.])
+                    v_ranks = get_percentile_ranks(v_fixed_height, [4., 8., 14., 25.])
                     res['fixed']['wind_speed']['rank'][4][i_out, i_lat_in_subset, i_lon] = v_ranks[0]
                     res['fixed']['wind_speed']['rank'][8][i_out, i_lat_in_subset, i_lon] = v_ranks[1]
                     res['fixed']['wind_speed']['rank'][14][i_out, i_lat_in_subset, i_lon] = v_ranks[2]
                     res['fixed']['wind_speed']['rank'][25][i_out, i_lat_in_subset, i_lon] = v_ranks[3]
-
-                    p_fixed_height = p_req_alt[:, fixed_height_id]
 
                     p_mean, p_perc5, p_perc32, p_perc50 = get_statistics(p_fixed_height)
                     res['fixed']['wind_power_density']['mean'][i_out, i_lat_in_subset, i_lon] = p_mean
@@ -306,31 +292,16 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
                     res['fixed']['wind_power_density']['rank'][1600][i_out, i_lat_in_subset, i_lon] = p_ranks[2]
                     res['fixed']['wind_power_density']['rank'][9000][i_out, i_lat_in_subset, i_lon] = p_ranks[3]
 
-                # Integrate power along the altitude.
-                for range_id in integration_range_ids:
-                    height_id_start = analyzed_heights_ids['integration_ranges'][range_id][1]
-                    height_id_final = analyzed_heights_ids['integration_ranges'][range_id][0]
-
-                    p_integral = []
-                    x = heights_of_interest[height_id_start:height_id_final + 1]
-                    for i_hr in range(len(hours)):
-                        y = p_req_alt[i_hr, height_id_start:height_id_final+1]
-                        p_integral.append(-np.trapz(y, x))
-
-                    res['integration_ranges']['wind_power_density']['mean'][range_id, i_lat_in_subset, i_lon] = \
-                        np.mean(p_integral)
-
                 # Determine wind statistics for ceiling cases.
-                for i_out, ceiling_id in enumerate(analyzed_heights_ids['ceilings']):
+                for i_out, ceiling in enumerate(analyzed_heights['ceilings']):
                     # Find the height maximizing the wind speed for each hour.
-                    v_ceiling = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
-                    v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + \
-                                    ceiling_id
-                    # optimal_heights = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
+                    mask = (level_heights >= analyzed_heights['floor']) & (level_heights <= ceiling)
 
-                    # rho_ceiling = get_density_at_altitude(optimal_heights + surf_elev)
-                    rho_ceiling = rho_req_alt[np.arange(len(hours)), v_ceiling_ids]
-                    p_ceiling = calc_power(v_ceiling, rho_ceiling)
+                    v_ceiling = np.amax(v_levels[:, :, i_lat_in_subset, i_lon], where=mask, initial=0, axis=1,
+                                        keepdims=True)
+                    v_ceiling_ids = np.argmax(v_levels[:, :, i_lat_in_subset, i_lon] == v_ceiling, axis=1)
+                    rho_ceiling = density_levels[np.arange(len(hours)), v_ceiling_ids]
+                    p_ceiling = calc_power(v_ceiling[:, 0], rho_ceiling)
 
                     v_mean, v_perc5, v_perc32, v_perc50 = get_statistics(v_ceiling)
                     res['ceilings']['wind_speed']['mean'][i_out, i_lat_in_subset, i_lon] = v_mean
@@ -359,7 +330,7 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
         print('Locations analyzed: ({}/{:.0f}).'.format(counter, total_iters)) 
         # Flatten output, convert to xarray Dataset and write to output file.
         output_file_name_formatted = output_file.format(**{'start_year': start_year, 'final_year': final_year,
-                                                           'lat_subset_id': i_subset, 'max_lat_subset_id': n_subsets-1})
+                                                           'lat_subset_id': start_subset_id, 'max_lat_subset_id': end_subset_id})
         print('Writing output to file: {}'.format(output_file_name_formatted))
         flattened_subset_output = get_result_dict(lats_subset, lons, hours, res)
         nc_out = xr.Dataset.from_dict(flattened_subset_output)
@@ -371,12 +342,13 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
         time_remaining = time_lapsed/counter*(total_iters-counter)
         print("Time lapsed: {:.2f} hrs, expected time remaining: {:.2f} hrs.".format(time_lapsed/3600,
                                                                                      time_remaining/3600))
+    print("Minimum height encountered: {:.1f}".format(min(min_heights)))
     ds.close()  # Close the input NetCDF file.
     return n_subsets-1
 
 
 def create_empty_dict():
-    d = {'integration_ranges': {'wind_power_density': {'mean': None}}}
+    d = {}
     for analysis_type in ['fixed', 'ceilings']:
         d[analysis_type] = {
             'wind_power_density': {
@@ -447,7 +419,6 @@ def get_result_dict(lats, lons, hours, analysis_results):
     dimension_names = {
         'fixed': 'fixed_height',
         'ceilings': 'height_range_ceiling',
-        'integration_ranges': 'integration_range_id',
     }
     # Analysis to variable names
     var_names = {
@@ -457,7 +428,6 @@ def get_result_dict(lats, lons, hours, analysis_results):
           # Analysis types
           'fixed': 'fixed',
           'ceilings': 'ceiling',
-          'integration_ranges': 'integral',
           # Stats operation
           'mean': 'mean',
           'percentile': 'perc',
@@ -471,8 +441,7 @@ def get_result_dict(lats, lons, hours, analysis_results):
     result_dict['time'] = {"dims": "time", "data": hours}
     result_dict['fixed_height'] = {"dims": "fixed_height", "data": analyzed_heights['fixed']}
     result_dict['height_range_ceiling'] = {"dims": "height_range_ceiling", "data": analyzed_heights['ceilings']}
-    result_dict['integration_range_id'] = {"dims": "integration_range_id", "data": integration_range_ids}
-    
+
     # Flattening the result array
     flattened_analysis_results = flatten_dict(analysis_results)  # flatten the dict inserting '.' between keywords
     for flattened_var_name, result_array in flattened_analysis_results.items():
@@ -508,8 +477,8 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
     i_lat = list(lats).index(location_lat)
     i_lon = list(lons).index(location_lon)
 
-    v_levels_east = ds.variables['u'][:, i_highest_level:, i_lat, i_lon]
-    v_levels_north = ds.variables['v'][:, i_highest_level:, i_lat, i_lon]
+    v_levels_east = ds.variables['u'][:, i_highest_level:, i_lat, i_lon].values
+    v_levels_north = ds.variables['v'][:, i_highest_level:, i_lat, i_lon].values
     v_levels = (v_levels_east**2 + v_levels_north**2)**.5
 
     t_levels = ds.variables['t'][:, i_highest_level:, i_lat, i_lon].values
@@ -522,26 +491,31 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
 
     ds.close()  # Close the input NetCDF file.
 
-    # determine wind at altitudes of interest by means of interpolating the raw wind data
-    v_req_alt = np.zeros((len(hours), len(heights_of_interest)))  # result array for writing interpolated data
-
     level_heights, density_levels = compute_level_heights(levels, surface_pressure, t_levels, q_levels)
 
-    for i_hr in range(len(hours)):
-        # np.interp requires x-coordinates of the data points to increase
-        if not np.all(level_heights[i_hr, 0] > heights_of_interest):
-            raise ValueError("Requested height is higher than height of highest model level.")
-        v_req_alt[i_hr, :] = np.interp(heights_of_interest, level_heights[i_hr, ::-1], v_levels[i_hr, ::-1])
-
-    v_ceilings = np.zeros((len(hours), len(analyzed_heights_ids['ceilings'])))
-    optimal_heights = np.zeros((len(hours), len(analyzed_heights_ids['ceilings'])))
-    for i, ceiling_id in enumerate(analyzed_heights_ids['ceilings']):
+    v_ceilings = np.zeros((len(hours), len(analyzed_heights['ceilings'])))
+    optimal_heights = np.zeros((len(hours), len(analyzed_heights['ceilings'])))
+    for i, ceiling in enumerate(analyzed_heights['ceilings']):
         # Find the height maximizing the wind speed for each hour.
-        v_ceilings[:, i] = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
-        v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + ceiling_id
-        optimal_heights[:, i] = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
+        mask = (level_heights >= analyzed_heights['floor']) & (level_heights <= ceiling)
 
-    return hours, v_req_alt, v_ceilings, optimal_heights
+        v_ceiling = np.amax(v_levels, where=mask, axis=1, initial=0,
+                            keepdims=True)
+        v_ceilings[:, i] = v_ceiling[:, 0]
+
+        v_ceiling_ids = np.argmax(v_levels == v_ceiling, axis=1)
+        rho_ceiling = density_levels[np.arange(len(hours)), v_ceiling_ids]
+        p_ceiling = calc_power(v_ceiling[:, 0], rho_ceiling)
+
+        optimal_heights[:, i] = level_heights[np.arange(len(hours)), v_ceiling_ids]
+
+
+        # # Find the height maximizing the wind speed for each hour.
+        # v_ceilings[:, i] = np.amax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1)
+        # v_ceiling_ids = np.argmax(v_req_alt[:, ceiling_id:analyzed_heights_ids['floor'] + 1], axis=1) + ceiling_id
+        # optimal_heights[:, i] = [heights_of_interest[max_id] for max_id in v_ceiling_ids]
+
+    return hours, v_levels, level_heights, v_ceilings, optimal_heights
 
 
 def interpret_input_args():
@@ -582,11 +556,14 @@ def interpret_input_args():
 if __name__ == '__main__':
     print("processing monthly ERA5 data from {:d} to {:d}".format(start_year, final_year))
 
-    # Read command-line arguments
-    input_start_subset_id, input_end_subset_id = interpret_input_args()
+    # # Read command-line arguments
+    # input_start_subset_id, input_end_subset_id = interpret_input_args()
 
-    # Start processing
-    max_subset_id = process_grid_subsets(output_file_name_subset, input_start_subset_id, input_end_subset_id)
+    # # Start processing
+    # max_subset_id = process_grid_subsets(output_file_name_subset, input_start_subset_id, input_end_subset_id)
 
-    if len(sys.argv) == 1:  # No user input given - all subsets processed at once and combined afterwards.
-        merge_output_files(start_year, final_year, max_subset_id)
+    for i in range(int(np.ceil(36/read_n_lats_per_subset))):
+        max_subset_id = process_grid_subsets(output_file_name_subset, i, i)
+
+    # if len(sys.argv) == 1:  # No user input given - all subsets processed at once and combined afterwards.
+    #     merge_output_files(start_year, final_year, 5)

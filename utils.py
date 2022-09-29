@@ -202,3 +202,11 @@ def flatten_dict(input_dict, parent_key='', sep='.'):
         else: 
             items.append((new_key, v))
     return dict(items)
+
+
+def multi_interp(x, xp, fp):
+    assert xp.shape == fp.shape
+    i = np.arange(fp.shape[0])
+    j = np.apply_along_axis(np.searchsorted, 1, xp, x) - 1
+    d = (x - xp[i, j]) / (xp[i, j + 1] - xp[i, j])
+    return (1 - d) * fp[i, j] + fp[i, j + 1] * d

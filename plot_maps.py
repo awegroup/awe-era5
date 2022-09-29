@@ -733,7 +733,7 @@ def plot_figure10():
 
 def plot_figure11():
     """" Generate 40 W/m^2 power availability plot for alternative height ceilings. """
-    height_ceilings = [300., 1000., 1250.]
+    height_ceilings = [300., 1000., 1500.]
     height_ceiling_ids = [list(height_range_ceilings).index(height_ceiling) for height_ceiling in height_ceilings]
     baseline_height_ceiling = 500.
     baseline_height_ceiling_id = list(height_range_ceilings).index(baseline_height_ceiling)
@@ -772,7 +772,7 @@ def plot_figure11():
         'extend': 'min',
     }
 
-    column_titles = ["300 m", "1000 m", "1250 m"]
+    column_titles = ["300 m", "1000 m", "1500 m"]
     plot_items = [plot_item00, plot_item01, plot_item02]
 
     eval_contour_fill_levels(plot_items)
@@ -823,9 +823,9 @@ if __name__ == "__main__":
     plot_figure3()
     plot_figure4()
     plot_figure5()
-    plot_figure8()
-    plot_figure9_upper()
-    plot_figure9_lower()
-    plot_figure10()
-    plot_figure11()
+    # plot_figure8()
+    # plot_figure9_upper()
+    # plot_figure9_lower()
+    # plot_figure10()
+    # plot_figure11()
     plt.show()

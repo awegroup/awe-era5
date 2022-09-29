@@ -25,19 +25,19 @@ Attributes:
 
 """
 # General settings.
-start_year = 2011
-final_year = 2017
-era5_data_dir = '~/ERA5Data/'
-model_level_file_name_format = 'ml_{:d}_{:02d}.netcdf'
-surface_file_name_format = 'sfc_{:d}_{:02d}.netcdf'
+start_year = 2010
+final_year = 2020
+era5_data_dir = '/media/mark/LaCie/ERA5/Europe/'
+model_level_file_name_format = '{:d}_europe_{:d}_130_131_132_133_135.nc'
+surface_file_name_format = '{:d}_europe_{:d}_152.nc'
 
 # Downloading settings.
 area = "65/-20/30/20"
-upper_level = 112
+upper_level = 110
 
 # Processing settings.
-output_file_name = "results/processed_data_{start_year:d}-{final_year:d}.nc"
+output_file_name = "results/processed_data_europe_{start_year:d}_{final_year:d}.nc"
 output_file_name_subset = "results/processed_data_{start_year:d}-{final_year:d}_" \
                           "{lat_subset_id:04d}-{max_lat_subset_id:04d}.nc"
 
-read_n_lats_per_subset = 1
+read_n_lats_per_subset = 6
