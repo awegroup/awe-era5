@@ -17,7 +17,7 @@ from matplotlib.cbook import MatplotlibDeprecationWarning
 from mpl_toolkits.basemap import Basemap
 import warnings
 
-from utils import hour_to_date_str
+from utils import hour_to_date_str, add_inside_panel_labels
 from plotting_utils import read_dataset_user_input
 
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
@@ -139,7 +139,7 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
     """
     # Set up figure, calculate figure height corresponding to desired width.
     plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .92, 0, .035, 0.88
-    fig_width = 9.
+    fig_width = 8.
     fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom , plot_frame_left,
                                  plot_frame_right)
 
@@ -162,7 +162,7 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
 
         plt.axes(ax)
         plt.title(title)
-        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt)
+        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, extend=row_item.get('extend', 'neither'))
 
     # Add axis for colorbar.
     height_colorbar = .85
@@ -171,6 +171,7 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
     cbar = fig.colorbar(contour_fills, cax=cbar_ax, ticks=row_item['colorbar_ticks'])
     cbar.ax.set_yticklabels([cb_tick_fmt.format(t) for t in row_item['colorbar_ticks']])
     cbar.set_label(row_item['colorbar_label'])
+    return axs
 
 
 def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
@@ -184,8 +185,9 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
     # Set up figure, calculate figure height corresponding to desired width.
     plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .92, 0.17, 0., 1.
     width_colorbar = .27
-    bottom_pos_colorbar = .1
-    fig_width = 9.*(0.88-.035)
+    bottom_pos_colorbar = .11
+    fig_width = 8.*(0.88-.035)
+    print(fig_width)
     if column_titles is None:
         plot_frame_top = 1.
         column_titles = [None]*3
@@ -227,7 +229,7 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
         cbar = plt.colorbar(contour_fills, orientation="horizontal", cax=cbar_ax, ticks=cb_ticks, format=formatter)
         cbar.ax.set_xticklabels([cb_tick_fmt.format(t) for t in cb_ticks])
         cbar.set_label(plot_item['colorbar_label'])
-
+    return axs
 
 def plot_panel_2x3(plot_items, column_titles, row_items):
     """"Plot panel with 2 rows and 3 columns of individual plots.
@@ -240,7 +242,7 @@ def plot_panel_2x3(plot_items, column_titles, row_items):
     """
     # Set up figure, calculate determine figure height corresponding to desired width.
     plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .96, 0.0, .035, 0.88
-    fig_width = 9.
+    fig_width = 8.
     fig_height = calc_fig_height(fig_width, (2, 3), plot_frame_top, plot_frame_bottom, plot_frame_left,
                                  plot_frame_right)
 
@@ -288,6 +290,7 @@ def plot_panel_2x3(plot_items, column_titles, row_items):
         ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad + 2., 0),
                     xycoords=ax.yaxis.label, textcoords='offset points',
                     size='large', ha='right', va='center', rotation=90)
+    return axs
 
 
 def percentile_plots(plot_var, i_case, plot_settings):
@@ -335,7 +338,8 @@ def percentile_plots(plot_var, i_case, plot_settings):
     if 'contour_line_label_fmt' in plot_handling:
         row_item['contour_line_label_fmt'] = plot_handling["contour_line_label_fmt"]
 
-    plot_panel_1x3(plot_items, column_titles, row_item)
+    ax = plot_panel_1x3(plot_items, column_titles, row_item)
+    return ax
 
 
 def percentile_plots_ref(plot_var, i_case, plot_var_ref, i_case_ref, plot_settings_abs, plot_settings_rel):
@@ -413,7 +417,8 @@ def percentile_plots_ref(plot_var, i_case, plot_var_ref, i_case_ref, plot_settin
         row_items[1]['colorbar_tick_fmt'] = plot_settings_rel["colorbar_tick_fmt"]
     row_items[1]['extend'] = plot_settings_rel.get('extend', "neither")
 
-    plot_panel_2x3(plot_items, column_titles, row_items)
+    return plot_panel_2x3(plot_items, column_titles, row_items)
+
 
 
 def plot_figure5():
@@ -441,7 +446,7 @@ def plot_figure5():
     logspace2 = np.logspace(np.log10(4), np.log10(21.0), num=17)
     plot_item2 = {
         'data': plot_item1['data']/plot_item0['data'],
-        'contour_line_levels': [10, 15],
+        'contour_line_levels': [6, 10, 15],
         'contour_fill_levels': logspace2,
         'colorbar_ticks': logspace2[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -471,7 +476,8 @@ def plot_figure3():
         },
     }
 
-    percentile_plots("v_fixed", 0, plot_settings)
+    ax = percentile_plots("v_fixed", 0, plot_settings)
+    add_inside_panel_labels(ax)
 
 
 def plot_figure4():
@@ -515,7 +521,8 @@ def plot_figure4():
     plot_items = [plot_item0, plot_item1, plot_item2]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax, .8)
 
 
 def plot_figure8():
@@ -539,15 +546,17 @@ def plot_figure8():
         "contour_fill_levels": linspace_relative,
         "colorbar_ticks": linspace_relative[::4],
         "contour_line_levels": [
-            [1.1, 1.4, 1.7],
+            [1.3, 1.4, 2.5],
             [1.1, 1.4, 1.7],
             [1.1, 1.4, 1.7],
         ],
         'extend': 'max',
     }
-    percentile_plots_ref("v_ceiling", height_range_ceilings.index(500),
+    ax = percentile_plots_ref("v_ceiling", height_range_ceilings.index(500),
                          "v_fixed", fixed_heights.index(100),
                          plot_settings_absolute_row, plot_settings_relative_row)
+
+    add_inside_panel_labels(ax)
 
 
 def plot_figure9_upper():
@@ -591,7 +600,8 @@ def plot_figure9_upper():
     plot_items = [plot_item0, plot_item1, plot_item2]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax, .8)
 
 
 def plot_figure9_lower():
@@ -604,38 +614,37 @@ def plot_figure9_lower():
     fixed_height_ref = 100.
     fixed_height_id = list(fixed_heights).index(fixed_height_ref)
 
-    linspace0 = np.linspace(1, 6., 21)
+    linspace0 = np.arange(1, 8.1, .5)
+    line_levels = [2] + list(linspace0[:16:4])
     plot_item0 = {
         'data': nc["p_ceiling_perc5"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc5"].values[fixed_height_id, :, :],
         'contour_fill_levels': linspace0,
-        'contour_line_levels': np.arange(2., 5., 1.),
+        'contour_line_levels': line_levels,
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace0[::4],
+        'colorbar_ticks': line_levels[1:],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
     }
-    linspace1 = np.linspace(1, 12.0, 21)
     plot_item1 = {
         'data': nc["p_ceiling_perc32"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc32"].values[fixed_height_id, :, :],
-        'contour_fill_levels': linspace1,
-        'contour_line_levels': linspace1[::4],
+        'contour_fill_levels': linspace0,
+        'contour_line_levels': line_levels,
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace1[::4],
+        'colorbar_ticks': line_levels[1:],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
     }
-    linspace2 = np.linspace(1, 12.5, 21)
     plot_item2 = {
         'data': nc["p_ceiling_perc50"].values[height_ceiling_id, :, :]
                 / nc["p_fixed_perc50"].values[fixed_height_id, :, :],
-        'contour_fill_levels': linspace2,
-        'contour_line_levels': linspace2[::4],
+        'contour_fill_levels': linspace0,
+        'contour_line_levels': line_levels,
         'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace2[::4],
+        'colorbar_ticks': line_levels[1:],
         'colorbar_tick_fmt': '{:.1f}',
         'colorbar_label': 'Increase factor [-]',
         'extend': 'max',
@@ -644,7 +653,8 @@ def plot_figure9_lower():
     plot_items = [plot_item0, plot_item1, plot_item2]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax, i0=3)
 
 
 def plot_figure10():
@@ -663,7 +673,7 @@ def plot_figure10():
         'colorbar_label': 'Availability [%]',
         'extend': 'min',
     }
-    linspace01 = np.linspace(0, 100, 21)
+    linspace01 = np.linspace(0, 80, 21)
     plot_item01 = {
         'data': 100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :],
         'contour_fill_levels': linspace01,
@@ -673,7 +683,7 @@ def plot_figure10():
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability [%]',
     }
-    linspace02 = np.linspace(0, 70, 21)
+    linspace02 = np.linspace(0, 45, 21)
     plot_item02 = {
         'data': 100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :],
         'contour_fill_levels': linspace02,
@@ -688,36 +698,37 @@ def plot_figure10():
     plot_items = [plot_item00, plot_item01, plot_item02]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax)
 
     linspace10 = np.linspace(0., 50., 21)
     plot_item10 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank40"].values[0, :, :]),
         'contour_fill_levels': linspace10,
-        'contour_line_levels': sorted([1.1, 2.2]+list(linspace10[::4][:-2])),
+        'contour_line_levels': [5]+list(linspace10[::4][:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace10[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
-    linspace11 = np.linspace(0., 55., 21)
+    linspace11 = np.linspace(0., 50., 21)
     plot_item11 = {
         'data': (100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank300"].values[0, :, :]),
         'contour_fill_levels': linspace11,
-        'contour_line_levels': linspace11[::4][:-2],
+        'contour_line_levels': list(linspace11[::4][:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace11[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
-    linspace12 = np.linspace(0., 45., 21)
+    linspace12 = np.linspace(0., 50., 21)
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank1600"].values[0, :, :]),
         'contour_fill_levels': linspace12,
-        'contour_line_levels': linspace12[::4][:-2],
+        'contour_line_levels': [5]+list(linspace12[::4][:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace12[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -728,12 +739,13 @@ def plot_figure10():
     plot_items = [plot_item10, plot_item11, plot_item12]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax, i0=3)
 
 
 def plot_figure11():
     """" Generate 40 W/m^2 power availability plot for alternative height ceilings. """
-    height_ceilings = [300., 1000., 1500.]
+    height_ceilings = [300., 1000., 1250.]
     height_ceiling_ids = [list(height_range_ceilings).index(height_ceiling) for height_ceiling in height_ceilings]
     baseline_height_ceiling = 500.
     baseline_height_ceiling_id = list(height_range_ceilings).index(baseline_height_ceiling)
@@ -772,40 +784,41 @@ def plot_figure11():
         'extend': 'min',
     }
 
-    column_titles = ["300 m", "1000 m", "1500 m"]
+    column_titles = ["300 m", "1000 m", "1250 m"]
     plot_items = [plot_item00, plot_item01, plot_item02]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax)
 
     linspace10 = np.linspace(0., 20., 21)
     plot_item10 = {
         'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :])+
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace10,
-        'contour_line_levels': sorted([1.1]+list(linspace10[::4])),
+        'contour_line_levels': sorted([2.31]+list(linspace10[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace10[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability decrease [%]',
     }
-    linspace11 = np.linspace(0., 38., 21)
+    linspace11 = np.linspace(0., 40, 21)
     plot_item11 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace11,
-        'contour_line_levels': sorted([2.3]+list(linspace11[::4])),
+        'contour_line_levels': sorted([4.3]+list(linspace11[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace11[::4],
         'colorbar_tick_fmt': '{:.0f}',
         'colorbar_label': 'Availability increase [%]',
     }
-    linspace12 = np.linspace(0., 42., 21)
+    linspace12 = np.linspace(0., 50., 21)
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
         'contour_fill_levels': linspace12,
-        'contour_line_levels': sorted([3.8]+list(linspace12[::4])),
+        'contour_line_levels': sorted([6.4]+list(linspace12[::4])),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace12[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -816,16 +829,19 @@ def plot_figure11():
     plot_items = [plot_item10, plot_item11, plot_item12]
 
     eval_contour_fill_levels(plot_items)
-    plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    add_inside_panel_labels(ax, i0=3)
 
 
 if __name__ == "__main__":
-    plot_figure3()
-    plot_figure4()
-    plot_figure5()
+    # plot_figure3()
+    # plot_figure4()
+
+    # plot_figure5()
     # plot_figure8()
     # plot_figure9_upper()
     # plot_figure9_lower()
-    # plot_figure10()
+
+    plot_figure10()
     # plot_figure11()
     plt.show()

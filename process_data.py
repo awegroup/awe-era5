@@ -299,7 +299,8 @@ def process_grid_subsets(output_file, start_subset_id=0, end_subset_id=-1):
 
                     v_ceiling = np.amax(v_levels[:, :, i_lat_in_subset, i_lon], where=mask, initial=0, axis=1,
                                         keepdims=True)
-                    v_ceiling_ids = np.argmax(v_levels[:, :, i_lat_in_subset, i_lon] == v_ceiling, axis=1)
+                    v_ceiling_ids = v_levels.shape[1] - np.argmax(v_levels[:, ::-1, i_lat_in_subset, i_lon] ==
+                                                                  v_ceiling, axis=1) - 1
                     rho_ceiling = density_levels[np.arange(len(hours)), v_ceiling_ids]
                     p_ceiling = calc_power(v_ceiling[:, 0], rho_ceiling)
 
@@ -499,11 +500,10 @@ def eval_single_location(location_lat, location_lon, start_year, final_year):
         # Find the height maximizing the wind speed for each hour.
         mask = (level_heights >= analyzed_heights['floor']) & (level_heights <= ceiling)
 
-        v_ceiling = np.amax(v_levels, where=mask, axis=1, initial=0,
-                            keepdims=True)
+        v_ceiling = np.amax(v_levels, where=mask, axis=1, initial=0, keepdims=True)
         v_ceilings[:, i] = v_ceiling[:, 0]
 
-        v_ceiling_ids = np.argmax(v_levels == v_ceiling, axis=1)
+        v_ceiling_ids = v_levels.shape[1] - np.argmax(v_levels[:, ::-1] == v_ceiling, axis=1) - 1
         rho_ceiling = density_levels[np.arange(len(hours)), v_ceiling_ids]
         p_ceiling = calc_power(v_ceiling[:, 0], rho_ceiling)
 

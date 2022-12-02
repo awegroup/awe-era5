@@ -27,6 +27,39 @@ def zip_el(*args):
     return zip(*args)
 
 
+def add_panel_labels(ax, offset_x=.15):
+    import string
+    if ax.ndim > 1:
+        denominator = ax.shape[1]
+        ax = ax.reshape(-1)
+    else:
+        denominator = ax.shape[0]
+    for i, a in enumerate(ax):
+        label = '('+string.ascii_lowercase[i]+')'
+        if isinstance(offset_x, float):
+            x = -offset_x
+        else:
+            x = -offset_x[i % denominator]
+        if hasattr(a, 'text2D'):
+            fun = a.text2D
+        else:
+            fun = a.text
+        fun(x, .5, label, transform=a.transAxes, fontsize='large')  #, fontweight='bold', va='top', ha='right')
+
+
+def add_inside_panel_labels(ax, y=None, i0=0):
+    import string
+    ax = ax.reshape(-1)
+    if y is None:
+        y = [.85]*ax.shape[0]
+    elif isinstance(y, float):
+        y = [y]*ax.shape[0]
+    for i, a in enumerate(ax):
+        txt = '${}$'.format(string.ascii_lowercase[i+i0])
+        a.plot(.05, y[i], 'o', mfc="white", alpha=1, ms=14, mec='k', transform=a.transAxes)
+        a.plot(.05, y[i], marker=txt, alpha=1, ms=7, mec='k', transform=a.transAxes)
+
+
 def hour_to_date_str(hour, str_format=None):
     """Convert hour since 1900-01-01 00:00 to string of date.
 
@@ -204,7 +237,9 @@ def flatten_dict(input_dict, parent_key='', sep='.'):
     return dict(items)
 
 
-def multi_interp(x, xp, fp):
+def multi_interp(x, xp, fp, fill_right=False):
+    if fill_right:
+        xp[:, -1] = np.where(xp[:, -1] < x, x, xp[:, -1])
     assert xp.shape == fp.shape
     i = np.arange(fp.shape[0])
     j = np.apply_along_axis(np.searchsorted, 1, xp, x) - 1
