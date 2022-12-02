@@ -27,7 +27,7 @@ Attributes:
 # General settings.
 start_year = 2010
 final_year = 2020
-era5_data_dir = '/media/mark/LaCie/ERA5/Europe/'
+era5_data_dir = '/home/mark/WindData/'
 model_level_file_name_format = '{:d}_europe_{:d}_130_131_132_133_135.nc'
 surface_file_name_format = '{:d}_europe_{:d}_152.nc'
 

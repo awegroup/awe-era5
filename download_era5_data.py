@@ -221,9 +221,6 @@ def download_all():
                 p = Process(target=download_data, args=(m, y, era5_request, file_name))
                 processes.append(p)
                 p.start()
-                break
-            break
-        break
 
     for p in processes:
         p.join()
