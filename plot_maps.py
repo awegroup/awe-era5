@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib.ticker import LogFormatter
 from matplotlib.cbook import MatplotlibDeprecationWarning
+import os
+os.environ["PROJ_LIB"] = os.path.join(os.environ["CONDA_PREFIX"], "share", "proj")
 from mpl_toolkits.basemap import Basemap
 import warnings
 
@@ -23,7 +25,7 @@ from plotting_utils import read_dataset_user_input
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
 
 # General plot settings.
-map_resolution = 'i'  # Options for resolution are c (crude), l (low), i (intermediate), h (high), f (full) or None
+map_resolution = 'l'  # Options for resolution are c (crude), l (low), i (intermediate), h (high), f (full) or None
 cline_label_format_default = '%.1f'
 n_fill_levels_default = 14
 n_line_levels_default = 6
@@ -706,7 +708,7 @@ def plot_figure10():
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank40"].values[0, :, :]),
         'contour_fill_levels': linspace10,
-        'contour_line_levels': [5]+list(linspace10[::4][:-2]),
+        'contour_line_levels': [5]+list(linspace10[::4][1:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace10[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -717,7 +719,7 @@ def plot_figure10():
         'data': (100.-nc["p_ceiling_rank300"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank300"].values[0, :, :]),
         'contour_fill_levels': linspace11,
-        'contour_line_levels': list(linspace11[::4][:-2]),
+        'contour_line_levels': [5]+list(linspace11[::4][1:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace11[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -728,7 +730,7 @@ def plot_figure10():
         'data': (100.-nc["p_ceiling_rank1600"].values[height_ceiling_id, :, :])-
                 (100.-nc["p_fixed_rank1600"].values[0, :, :]),
         'contour_fill_levels': linspace12,
-        'contour_line_levels': [5]+list(linspace12[::4][:-2]),
+        'contour_line_levels': [5]+list(linspace12[::4][1:-2]),
         'contour_line_label_fmt': '%.1f',
         'colorbar_ticks': linspace12[::4],
         'colorbar_tick_fmt': '{:.0f}',
@@ -842,6 +844,6 @@ if __name__ == "__main__":
     # plot_figure9_upper()
     # plot_figure9_lower()
 
-    plot_figure10()
-    # plot_figure11()
+    # plot_figure10()
+    plot_figure11()
     plt.show()
