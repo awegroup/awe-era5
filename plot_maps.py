@@ -93,8 +93,8 @@ def eval_contour_fill_levels(plot_items):
                   .format(item['contour_fill_levels'][0], i))
 
 
-def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_default, log_scale=False,
-                    extend="neither"):
+def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_default, norm=None,
+                    extend="neither", cmap=color_map):
     """"Individual plot of coastlines and contours.
 
     Args:
@@ -102,7 +102,7 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
         cf_lvls (list): Contour fill levels.
         cl_lvls (list): Contour line levels.
         cline_label_format (str, optional): Contour line label format string. Defaults to `cline_label_format_default`.
-        log_scale (bool): Logarithmic scaled contour levels are used if True, linearly scaled if False.
+        norm (str): Specifying norm type; either log, two, or linear.
         extend (str): Setting for extension of contour fill levels.
 
     Returns:
@@ -111,15 +111,17 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
     """
     map_plot.drawcoastlines(linewidth=.4)
 
-    if log_scale:
+    if norm == 'log':
         norm = colors.LogNorm(vmin=cf_lvls[0], vmax=cf_lvls[-1])
+    elif norm == 'two':
+        norm = colors.TwoSlopeNorm(vmin=-10, vcenter=0, vmax=30)
     else:
         norm = None
 
     if extend == 'neither':
-        contour_fills = map_plot.contourf(x_grid, y_grid, z, cf_lvls, cmap=color_map, norm=norm)
+        contour_fills = map_plot.contourf(x_grid, y_grid, z, cf_lvls, cmap=cmap, norm=norm)
     else:
-        contour_fills = map_plot.contourf(x_grid, y_grid, z, cf_lvls, cmap=color_map, norm=norm, extend=extend)
+        contour_fills = map_plot.contourf(x_grid, y_grid, z, cf_lvls, cmap=cmap, norm=norm, extend=extend)
     contour_lines = plt.contour(x_grid, y_grid, z, cl_lvls, colors='0.1', linewidths=1)
 
     # Label levels with specially formatted floats
@@ -130,7 +132,7 @@ def individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cline_label_format_d
     return contour_fills
 
 
-def plot_panel_1x3(plot_items, column_titles, row_item):
+def plot_panel_1x3(plot_items, column_titles, row_item, cmap=color_map):
     """"Plot panel with 3 columns of individual plots.
 
     Args:
@@ -140,7 +142,13 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
 
     """
     # Set up figure, calculate figure height corresponding to desired width.
-    plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .92, 0, .035, 0.88
+    plot_frame_bottom, plot_frame_left, plot_frame_right = 0, 0, 0.88
+    if column_titles == None:
+        column_titles = [None]*3
+        plot_frame_top = 1.
+    else:
+        plot_frame_top = .92
+
     fig_width = 8.
     fig_height = calc_fig_height(fig_width, (1, 3), plot_frame_top, plot_frame_bottom , plot_frame_left,
                                  plot_frame_right)
@@ -163,8 +171,9 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
         cl_lvls = plot_item['contour_line_levels']
 
         plt.axes(ax)
-        plt.title(title)
-        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, extend=row_item.get('extend', 'neither'))
+        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt,
+                                        extend=row_item.get('extend', 'neither'), cmap=cmap,
+                                        norm=row_item.get('norm', None))
 
     # Add axis for colorbar.
     height_colorbar = .85
@@ -176,7 +185,7 @@ def plot_panel_1x3(plot_items, column_titles, row_item):
     return axs
 
 
-def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
+def plot_panel_1x3_seperate_colorbar(plot_items, column_titles, cmap=color_map, plot_frame_right=1., fig_width=8.*(0.88-.035)):
     """"Plot panel with 3 columns of individual plots using solely seperate plot properties.
 
     Args:
@@ -185,11 +194,9 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
 
     """
     # Set up figure, calculate figure height corresponding to desired width.
-    plot_frame_top, plot_frame_bottom, plot_frame_left, plot_frame_right = .92, 0.17, 0., 1.
+    plot_frame_top, plot_frame_bottom, plot_frame_left = .92, 0.17, 0.
     width_colorbar = .27
     bottom_pos_colorbar = .11
-    fig_width = 8.*(0.88-.035)
-    print(fig_width)
     if column_titles is None:
         plot_frame_top = 1.
         column_titles = [None]*3
@@ -210,7 +217,7 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
         cl_lvls = plot_item['contour_line_levels']
         cb_ticks = plot_item['colorbar_ticks']
         cb_tick_fmt = plot_item['colorbar_tick_fmt']
-        apply_log_scale = plot_item.get('log_scale', False)
+        norm = plot_item.get('norm', None)
         extend = plot_item.get('extend', "neither")
         cl_label_fmt = plot_item.get('contour_line_label_fmt', None)
         if cl_label_fmt is None:
@@ -218,13 +225,13 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
 
         plt.axes(ax)
         plt.title(title)
-        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, log_scale=apply_log_scale,
-                                        extend=extend)
+        contour_fills = individual_plot(z, cf_lvls, cl_lvls, cline_label_format=cl_label_fmt, norm=norm,
+                                        extend=extend, cmap=cmap)
 
         # Add axis for colorbar.
         left_pos_colorbar = plot_frame_width/3*i + (plot_frame_width/3-width_colorbar)/2 + plot_frame_left
         cbar_ax = fig.add_axes([left_pos_colorbar, bottom_pos_colorbar, width_colorbar, 0.035])
-        if apply_log_scale:
+        if norm == 'log':
             formatter = LogFormatter(10, labelOnlyBase=False)
         else:
             formatter = None
@@ -232,6 +239,7 @@ def plot_panel_1x3_seperate_colorbar(plot_items, column_titles):
         cbar.ax.set_xticklabels([cb_tick_fmt.format(t) for t in cb_ticks])
         cbar.set_label(plot_item['colorbar_label'])
     return axs
+
 
 def plot_panel_2x3(plot_items, column_titles, row_items):
     """"Plot panel with 2 rows and 3 columns of individual plots.
@@ -790,48 +798,41 @@ def plot_figure11():
     plot_items = [plot_item00, plot_item01, plot_item02]
 
     eval_contour_fill_levels(plot_items)
-    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles, fig_width=8, plot_frame_right=0.88)
     add_inside_panel_labels(ax)
 
-    linspace10 = np.linspace(0., 20., 21)
+    linspace = np.linspace(-10, 30., 21)
+    line_levels = sorted([-5, -1, 2] + list(linspace[::5]))
     plot_item10 = {
-        'data': -(100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :])+
+        'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[0], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
-        'contour_fill_levels': linspace10,
-        'contour_line_levels': sorted([2.31]+list(linspace10[::4])),
-        'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace10[::4],
-        'colorbar_tick_fmt': '{:.0f}',
-        'colorbar_label': 'Availability decrease [%]',
+        'contour_line_levels': sorted([-2.31]+line_levels),
     }
-    linspace11 = np.linspace(0., 40, 21)
     plot_item11 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[1], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
-        'contour_fill_levels': linspace11,
-        'contour_line_levels': sorted([4.3]+list(linspace11[::4])),
-        'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace11[::4],
-        'colorbar_tick_fmt': '{:.0f}',
-        'colorbar_label': 'Availability increase [%]',
+        'contour_line_levels': sorted([4.3]+line_levels),
     }
-    linspace12 = np.linspace(0., 50., 21)
     plot_item12 = {
         'data': (100.-nc["p_ceiling_rank40"].values[height_ceiling_ids[2], :, :])-
                 (100.-nc["p_ceiling_rank40"].values[baseline_height_ceiling_id, :, :]),
-        'contour_fill_levels': linspace12,
-        'contour_line_levels': sorted([6.4]+list(linspace12[::4])),
-        'contour_line_label_fmt': '%.1f',
-        'colorbar_ticks': linspace12[::4],
-        'colorbar_tick_fmt': '{:.0f}',
+        'contour_line_levels': sorted([6.4]+line_levels),
+    }
+    row_item = {
+        'contour_fill_levels': linspace,
+        'colorbar_ticks': linspace[::5],
         'colorbar_label': 'Availability increase [%]',
+        'extend': 'both',
+        'norm': 'two',
+        'colorbar_tick_fmt': '{:.0f}',
+        'contour_line_label_fmt': '%.1f',
     }
 
     column_titles = None
     plot_items = [plot_item10, plot_item11, plot_item12]
 
-    eval_contour_fill_levels(plot_items)
-    ax = plot_panel_1x3_seperate_colorbar(plot_items, column_titles)
+    # eval_contour_fill_levels(plot_items)
+    ax = plot_panel_1x3(plot_items, column_titles, row_item, cmap=plt.get_cmap('coolwarm'))
     add_inside_panel_labels(ax, i0=3)
 
 

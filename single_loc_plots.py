@@ -79,7 +79,7 @@ def plot_figure_5a(hours, v_ceiling, optimal_heights, ceiling_height, floor_heig
     for i, h_id in enumerate(marker_ids):
         ax[1].plot(dates[h_id], v_ceiling[h_id], marker_cycle[i], color=color_cycle_default[i], markersize=7,
                    markeredgewidth=1.5, markerfacecolor='None')
-    ax[1].set_ylabel('Maximal wind\nspeed [m/s]')
+    ax[1].set_ylabel('Maximum wind\nspeed [m/s]')
     ax[1].grid()
     ax[1].set_xlim(dates_limits)
 
@@ -307,6 +307,6 @@ def distribution_plots(eval_lat=51.0, eval_lon=1.0):
 
 
 if __name__ == "__main__":
-    # optimal_height_plots()
+    optimal_height_plots()
     distribution_plots()
     plt.show()
